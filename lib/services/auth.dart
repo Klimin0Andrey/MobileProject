@@ -1,12 +1,14 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:linux_test2/models/user.dart';
+import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/services/database.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   AppUser? _userFromFirebaseUser(User? user) {
-    return user != null ? AppUser(uid: user.uid) : null;
+    return user != null
+        ? AppUser(uid: user.uid, email: user.email ?? '', role: 'customer')
+        : null;
   }
 
   Stream<AppUser?> get user {
@@ -54,6 +56,14 @@ class AuthService {
       await DatabaseService(
         uid: user.uid,
       ).updateUserData('0', 'new member', 100);
+
+      // Создаем запись пользователя в Firestore
+      await DatabaseService(uid: user.uid).updateUserData(
+          '0',
+          'new member',
+          100
+      );
+
       return _userFromFirebaseUser(user);
     } catch (e) {
       print(e.toString());
