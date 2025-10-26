@@ -8,9 +8,25 @@ class AppUser {
     required this.email,
     required this.role,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'uid': uid,
+      'email': email,
+      'role': role,
+    };
+  }
+
+  static AppUser fromMap(Map<String, dynamic> map) {
+    return AppUser(
+      uid: map['uid'] ?? '',
+      email: map['email'] ?? '',
+      role: map['role'] ?? 'customer',
+    );
+  }
 }
 
-class UserProfile {
+class UserData {
   final String uid;
   final String name;
   final String phone;
@@ -19,7 +35,7 @@ class UserProfile {
   final List<String> favorites;
   final String? avatarUrl;
 
-  UserProfile({
+  UserData({
     required this.uid,
     required this.name,
     required this.phone,
@@ -28,4 +44,28 @@ class UserProfile {
     required this.favorites,
     this.avatarUrl,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'uid': uid,
+      'name': name,
+      'phone': phone,
+      'role': role,
+      'addresses': addresses,
+      'favorites': favorites,
+      'avatarUrl': avatarUrl,
+    };
+  }
+
+  static UserData fromMap(Map<String, dynamic> map) {
+    return UserData(
+      uid: map['uid'] ?? '',
+      name: map['name'] ?? '',
+      phone: map['phone'] ?? '',
+      role: map['role'] ?? 'customer',
+      addresses: List<String>.from(map['addresses'] ?? []),
+      favorites: List<String>.from(map['favorites'] ?? []),
+      avatarUrl: map['avatarUrl'],
+    );
+  }
 }

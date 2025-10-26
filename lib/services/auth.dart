@@ -43,30 +43,32 @@ class AuthService {
     }
   }
 
-  Future<AppUser?> registerWithEmailAndPassword(
-    String email,
-    String password,
-  ) async {
+  Future<User?> registerWithEmailAndPassword({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    required String role,
+  }) async {
     try {
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
+      final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-      User user = result.user!;
-      await DatabaseService(
-        uid: user.uid,
-      ).updateUserData('0', 'new member', 100);
 
-      // Создаем запись пользователя в Firestore
-      await DatabaseService(uid: user.uid).updateUserData(
-          '0',
-          'new member',
-          100
-      );
+      final user = userCredential.user;
+      if (user != null) {
+        // Создаем профиль пользователя в Firestore
+        await DatabaseService(uid: user.uid).createUserProfile(
+          name: name,
+          phone: phone,
+          role: role,
+        );
+      }
 
-      return _userFromFirebaseUser(user);
+      return user;
     } catch (e) {
-      print(e.toString());
+      print('Error in registerWithEmailAndPassword: $e');
       return null;
     }
   }

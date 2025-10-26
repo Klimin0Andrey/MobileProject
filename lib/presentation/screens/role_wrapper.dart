@@ -15,7 +15,7 @@ class RoleBasedWrapper extends StatelessWidget {
 
     if (user == null) {
       print('→ Showing GuestHome');
-      return GuestHome();
+      return GuestHomeScreen();
     }
 
     switch (user.role) {
