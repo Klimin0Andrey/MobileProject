@@ -17,14 +17,23 @@ class RestaurantProvider with ChangeNotifier {
   String get selectedCuisine => _selectedCuisine;
 
   RestaurantProvider() {
+    print('🔄 RestaurantProvider создан');
     _loadRestaurants();
   }
 
   void _loadRestaurants() {
+    print('🔥 Начало загрузки ресторанов из Firestore...');
+
     _restaurantService.getRestaurants().listen((restaurants) {
+      print('✅ УСПЕХ: Загружено ${restaurants.length} ресторанов');
+      for (var restaurant in restaurants) {
+        print('   - ${restaurant.name}');
+      }
       _restaurants = restaurants;
       _filteredRestaurants = restaurants;
       notifyListeners();
+    }, onError: (error) {
+      print('❌ ОШИБКА загрузки: $error');
     });
   }
 

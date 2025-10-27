@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:linux_test2/services/auth.dart';
+import 'package:linux_test2/presentation/screens/customer/cart_screen.dart';
+import 'package:linux_test2/presentation/providers/cart_provider.dart';
 
 class CustomerHome extends StatelessWidget {
   const CustomerHome({super.key});
@@ -32,22 +35,56 @@ class CustomerHome extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              'Вы авторизованы как ПОЛЬЗОВАТЕЛЬ',
-              style: TextStyle(
-                fontSize: 20,
-                color: Colors.green,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            Text('Вы авторизованы как ПОЛЬЗОВАТЕЛЬ'),
             SizedBox(height: 20),
-            Text(
-              'Здесь будет главная страница для пользователей\nс ресторанами, корзиной и заказами',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
+            ElevatedButton(
+              onPressed: null,
+              child: Text('Перейти в корзину'),
             ),
           ],
         ),
+      ),
+      floatingActionButton: Consumer<CartProvider>(
+        builder: (context, cartProvider, child) {
+          return FloatingActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CartScreen()),
+              );
+            },
+            backgroundColor: Colors.orange,
+            child: Stack(
+              children: [
+                const Icon(Icons.shopping_cart, color: Colors.white),
+                if (cartProvider.totalItems > 0)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Text(
+                        cartProvider.totalItems.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }

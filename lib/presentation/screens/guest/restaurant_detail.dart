@@ -8,8 +8,9 @@ import 'package:linux_test2/data/models/dish.dart';
 
 class RestaurantDetailScreen extends StatelessWidget {
   final Restaurant restaurant;
+  final bool isGuest;
 
-  const RestaurantDetailScreen({super.key, required this.restaurant});
+  const RestaurantDetailScreen({super.key, required this.restaurant, required this.isGuest});
 
   @override
   Widget build(BuildContext context) {

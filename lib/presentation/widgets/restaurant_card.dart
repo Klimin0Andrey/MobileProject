@@ -4,8 +4,9 @@ import 'package:linux_test2/presentation/screens/guest/restaurant_detail.dart';
 
 class RestaurantCard extends StatelessWidget {
   final Restaurant restaurant;
+  final bool isGuest;
 
-  const RestaurantCard({super.key, required this.restaurant});
+  const RestaurantCard({super.key, required this.restaurant, required this.isGuest});
 
   @override
   Widget build(BuildContext context) {
@@ -14,7 +15,7 @@ class RestaurantCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => RestaurantDetailScreen(restaurant: restaurant),
+            builder: (context) => RestaurantDetailScreen(restaurant: restaurant, isGuest: isGuest),
           ),
         );
       },
@@ -23,7 +24,6 @@ class RestaurantCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Изображение ресторана
             Container(
               height: 150,
               width: double.infinity,

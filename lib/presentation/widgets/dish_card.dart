@@ -1,6 +1,8 @@
 // presentation/widgets/dish_card.dart
 import 'package:flutter/material.dart';
 import 'package:linux_test2/data/models/dish.dart';
+import 'package:provider/provider.dart';
+import 'package:linux_test2/presentation/providers/cart_provider.dart';
 
 class DishCard extends StatelessWidget {
   final Dish dish;
@@ -9,6 +11,8 @@ class DishCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cartProvider = Provider.of<CartProvider>(context, listen: false);
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -65,7 +69,13 @@ class DishCard extends StatelessWidget {
           // Кнопка добавления в корзину
           IconButton(
             onPressed: () {
-              // TODO: Добавить в корзину
+              cartProvider.addToCart(dish); // ← Теперь работает!
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('${dish.name} добавлен в корзину'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
             },
             icon: const Icon(Icons.add_shopping_cart),
           ),

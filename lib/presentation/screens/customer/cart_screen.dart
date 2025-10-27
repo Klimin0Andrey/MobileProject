@@ -1,0 +1,182 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:linux_test2/presentation/providers/cart_provider.dart';
+import 'package:linux_test2/data/models/cart_item.dart';
+
+class CartScreen extends StatelessWidget {
+  const CartScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Корзина'),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+      ),
+      body: Consumer<CartProvider>(
+        builder: (context, cartProvider, child) {
+          if (cartProvider.items.isEmpty) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.shopping_cart_outlined, size: 64, color: Colors.grey),
+                  SizedBox(height: 16),
+                  Text(
+                    'Корзина пуста',
+                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return Column(
+            children: [
+              // Список товаров
+              Expanded(
+                child: ListView.builder(
+                  itemCount: cartProvider.items.length,
+                  itemBuilder: (context, index) {
+                    final item = cartProvider.items[index];
+                    return CartItemCard(item: item);
+                  },
+                ),
+              ),
+
+              // Итого и кнопка оформления
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Итого:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('${cartProvider.totalPrice.toStringAsFixed(2)} ₽',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // TODO: Переход к оформлению заказа
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Функционал оформления заказа в разработке')),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        child: const Text('Оформить заказ', style: TextStyle(fontSize: 16)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class CartItemCard extends StatelessWidget {
+  final CartItem item;
+
+  const CartItemCard({super.key, required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            // Изображение блюда
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                image: item.dish.imageUrl.isNotEmpty
+                    ? DecorationImage(
+                  image: NetworkImage(item.dish.imageUrl),
+                  fit: BoxFit.cover,
+                )
+                    : null,
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Информация о блюде
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.dish.name,
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${item.dish.price} ₽',
+                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ),
+
+            // Управление количеством
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.remove, size: 20),
+                  onPressed: () {
+                    // TODO: Уменьшение количества
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Функционал изменения количества в разработке')),
+                    );
+                  },
+                ),
+                Text('${item.quantity}', style: const TextStyle(fontSize: 16)),
+                IconButton(
+                  icon: const Icon(Icons.add, size: 20),
+                  onPressed: () {
+                    // TODO: Увеличение количества
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Функционал изменения количества в разработке')),
+                    );
+                  },
+                ),
+              ],
+            ),
+
+            // Кнопка удаления
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              onPressed: () {
+                context.read<CartProvider>().removeFromCart(item.dish.id);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('${item.dish.name} удален из корзины')),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

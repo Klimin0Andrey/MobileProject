@@ -30,4 +30,38 @@ class CartProvider with ChangeNotifier {
     _items.clear();
     notifyListeners();
   }
+
+  void updateQuantity(String dishId, int newQuantity) {
+    final existingIndex = _items.indexWhere((item) => item.dish.id == dishId);
+
+    if (existingIndex >= 0) {
+      if (newQuantity <= 0) {
+        _items.removeAt(existingIndex);
+      } else {
+        _items[existingIndex].quantity = newQuantity;
+      }
+      notifyListeners();
+    }
+  }
+
+  void incrementQuantity(String dishId) {
+    final existingIndex = _items.indexWhere((item) => item.dish.id == dishId);
+    if (existingIndex >= 0) {
+      _items[existingIndex].quantity++;
+      notifyListeners();
+    }
+  }
+
+  void decrementQuantity(String dishId) {
+    final existingIndex = _items.indexWhere((item) => item.dish.id == dishId);
+    if (existingIndex >= 0) {
+      if (_items[existingIndex].quantity > 1) {
+        _items[existingIndex].quantity--;
+      } else {
+        _items.removeAt(existingIndex);
+      }
+      notifyListeners();
+    }
+  }
+
 }

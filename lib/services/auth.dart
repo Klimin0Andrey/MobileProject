@@ -43,7 +43,7 @@ class AuthService {
     }
   }
 
-  Future<User?> registerWithEmailAndPassword({
+  Future<AppUser?> registerWithEmailAndPassword({
     required String email,
     required String password,
     required String name,
@@ -66,7 +66,7 @@ class AuthService {
         );
       }
 
-      return user;
+      return null;
     } catch (e) {
       print('Error in registerWithEmailAndPassword: $e');
       return null;
