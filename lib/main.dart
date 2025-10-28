@@ -7,7 +7,6 @@ import 'package:linux_test2/presentation/screens/role_wrapper.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/presentation/providers/restaurant_provider.dart';
 
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
@@ -19,17 +18,21 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(  // ← Замени StreamProvider на MultiProvider
+    return MultiProvider(
+      // ← Замени StreamProvider на MultiProvider
       providers: [
+        Provider<AuthService>(create: (_) => AuthService()),
+
         StreamProvider<AppUser?>.value(
           value: AuthService().user,
           initialData: null,
         ),
-        ChangeNotifierProvider(create: (context) => CartProvider()), // ← Добавь CartProvider
+        ChangeNotifierProvider(create: (context) => CartProvider()),
+        // ← Добавь CartProvider
         ChangeNotifierProvider(create: (context) => RestaurantProvider()),
       ],
       child: MaterialApp(
-        title: 'Food Delivery',
+        title: 'YumYum',
         theme: ThemeData(fontFamily: 'Poppins'),
         home: const RoleBasedWrapper(),
         debugShowCheckedModeBanner: false,
@@ -37,5 +40,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
-

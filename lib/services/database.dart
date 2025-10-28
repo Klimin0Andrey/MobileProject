@@ -9,21 +9,24 @@ class DatabaseService {
   DatabaseService({required this.uid});
 
   // Коллекции (как в Brew)
-  final CollectionReference userCollection =
-  FirebaseFirestore.instance.collection('users');
-  final CollectionReference restaurantCollection =
-  FirebaseFirestore.instance.collection('restaurants');
-  final CollectionReference dishCollection =
-  FirebaseFirestore.instance.collection('dishes');
+  final CollectionReference userCollection = FirebaseFirestore.instance
+      .collection('users');
+  final CollectionReference restaurantCollection = FirebaseFirestore.instance
+      .collection('restaurants');
+  final CollectionReference dishCollection = FirebaseFirestore.instance
+      .collection('dishes');
 
   // Добавьте этот метод в класс DatabaseService в database.dart
   Future<void> createUserProfile({
     required String name,
+    required String email,
     required String phone,
     required String role,
   }) async {
     return await userCollection.doc(uid).set({
+      'uid': uid,
       'name': name,
+      'email': email,
       'phone': phone,
       'role': role,
       'addresses': [],

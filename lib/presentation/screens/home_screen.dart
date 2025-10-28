@@ -6,6 +6,7 @@ import 'package:linux_test2/presentation/providers/restaurant_provider.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/presentation/widgets/restaurant_card.dart';
 import 'package:linux_test2/presentation/screens/customer/cart_screen.dart';
+import 'package:linux_test2/presentation/screens/auth/authenticate.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: _buildAppBar(context, isGuest),
       body: _buildBody(isGuest),
       bottomNavigationBar: isGuest ? null : _buildBottomNavigationBar(),
-      floatingActionButton: isGuest ? null : _buildCartFAB(context),
+      floatingActionButton: isGuest ? _buildGuestFAB(context) : _buildCartFAB(context),
     );
   }
 
@@ -247,6 +248,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ОБНОВЛЕННЫЙ МЕТОД ДЛЯ ГОСТЕЙ
+  Widget _buildGuestFAB(BuildContext context) {
+    return FloatingActionButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const Authenticate()),
+        );
+      },
+      backgroundColor: Colors.orange,
+      child: const Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.login, size: 20),
+          Text('Войти', style: TextStyle(fontSize: 10)),
+        ],
+      ),
+    );
+  }
+
+  // СУЩЕСТВУЮЩИЙ МЕТОД ДЛЯ КОРЗИНЫ (для авторизованных пользователей)
   Widget _buildCartFAB(BuildContext context) {
     return Consumer<CartProvider>(
       builder: (context, cartProvider, child) {
@@ -293,29 +315,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // ОБНОВЛЕННЫЙ МЕТОД ДЛЯ ДИАЛОГА ВХОДА
   void _showLoginDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Вход в систему'),
-        content: const Text('Для добавления в корзину требуется авторизация'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // TODO: Переход к экрану авторизации
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Переход к авторизации')),
-              );
-            },
-            child: const Text('Войти'),
-          ),
-        ],
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const Authenticate()),
     );
   }
 

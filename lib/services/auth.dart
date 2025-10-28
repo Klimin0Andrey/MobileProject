@@ -1,49 +1,77 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/services/database.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  AppUser? _userFromFirebaseUser(User? user) {
-    return user != null
-        ? AppUser(uid: user.uid, email: user.email ?? '', role: 'customer')
-        : null;
-  }
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   Stream<AppUser?> get user {
-    return _auth.authStateChanges().map(_userFromFirebaseUser);
+    return _auth.authStateChanges().asyncMap(_userFromFirebase);
   }
 
-  Future<AppUser?> signInAnon() async {
+  // Преобразование User -> AppUser с данными из Firestore
+  Future<AppUser?> _userFromFirebase(User? user) async {
+    if (user == null) return null;
+
     try {
-      UserCredential result = await _auth.signInAnonymously();
-      User user = result.user!;
-      return _userFromFirebaseUser(user);
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        return AppUser(
+          uid: user.uid,
+          email: data['email'] ?? user.email ?? '',
+          role: data['role'] ?? 'customer',
+          name: data['name'] ?? '',
+          phone: data['phone'] ?? '',
+          addresses: List<String>.from(data['addresses'] ?? []),
+          favorites: List<String>.from(data['favorites'] ?? []),
+          avatarUrl: data['avatarUrl'],
+        );
+      } else {
+        // Если документа нет, создаем базового пользователя
+        return AppUser(
+          uid: user.uid,
+          email: user.email ?? '',
+          role: 'customer',
+          name: '',
+          phone: '',
+          addresses: [],
+          favorites: [],
+          avatarUrl: null,
+        );
+      }
     } catch (e) {
-      print(e.toString());
+      print('Error in _userFromFirebase: $e');
       return null;
     }
   }
 
-  Future<AppUser?> signInWithEmailAndPassword(
-    String email,
-    String password,
-  ) async {
+  // Анонимный вход (если нужен)
+  Future<void> signInAnon() async {
     try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      User user = result.user!;
-      return _userFromFirebaseUser(user);
+      await _auth.signInAnonymously();
     } catch (e) {
-      print(e.toString());
-      return null;
+      print('Anonymous sign in error: $e');
+      rethrow;
     }
   }
 
-  Future<AppUser?> registerWithEmailAndPassword({
+  // Вход - теперь возвращает Future<void> и пробрасывает ошибки
+  Future<void> signInWithEmailAndPassword(String email, String password) async {
+    try {
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      // Не возвращаем ничего - стрим сам обновится
+    } catch (e) {
+      print('Sign in error: $e');
+      rethrow; // Пробрасываем ошибку для обработки в UI
+    }
+  }
+
+  // Регистрация
+  Future<void> registerWithEmailAndPassword({
     required String email,
     required String password,
     required String name,
@@ -51,34 +79,43 @@ class AuthService {
     required String role,
   }) async {
     try {
+      print('🚀 Начало регистрации: $email');
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       final user = userCredential.user;
+      print('✅ Пользователь создан в Firebase Auth: ${user?.uid}');
       if (user != null) {
-        // Создаем профиль пользователя в Firestore
-        await DatabaseService(uid: user.uid).createUserProfile(
-          name: name,
-          phone: phone,
-          role: role,
-        );
+        // Создаем документ в Firestore
+        await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'email': email,
+          'name': name,
+          'phone': phone,
+          'role': role,
+          'addresses': [],
+          'favorites': [],
+          'avatarUrl': null,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+        print('✅ Профиль создан в Firestore');
       }
-
-      return null;
+      print('🎉 Регистрация завершена успешно');
     } catch (e) {
-      print('Error in registerWithEmailAndPassword: $e');
-      return null;
+      print('Registration error: $e');
+      rethrow;
     }
   }
 
-  Future signOut() async {
+  // Выход
+  Future<void> signOut() async {
     try {
-      return await _auth.signOut();
+      await _auth.signOut();
     } catch (e) {
-      print(e.toString());
-      return null;
+      print('Sign out error: $e');
+      rethrow;
     }
   }
 }
