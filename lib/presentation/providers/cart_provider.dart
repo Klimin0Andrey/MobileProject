@@ -1,4 +1,3 @@
-// presentation/providers/cart_provider.dart
 import 'package:flutter/material.dart';
 import 'package:linux_test2/data/models/cart_item.dart';
 import 'package:linux_test2/data/models/dish.dart';
@@ -62,6 +61,10 @@ class CartProvider with ChangeNotifier {
       }
       notifyListeners();
     }
+  }
+
+  bool isInCart(String dishId) {
+    return _items.any((item) => item.dish.id == dishId);
   }
 
 }

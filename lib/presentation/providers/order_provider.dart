@@ -14,6 +14,10 @@ class OrderProvider with ChangeNotifier {
     required List<CartItem> items,
     required double totalPrice,
     required String address,
+    // ДОБАВЛЯЕМ НОВЫЕ ПАРАМЕТРЫ
+    required String phone,
+    required String paymentMethod,
+    String? comment,
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -27,6 +31,10 @@ class OrderProvider with ChangeNotifier {
         address: address,
         createdAt: Timestamp.now(),
         status: app_order.OrderStatus.pending,
+        // ПЕРЕДАЕМ НОВЫЕ ДАННЫЕ
+        phone: phone,
+        paymentMethod: paymentMethod,
+        comment: comment,
       );
 
       // Отправляем в Firestore

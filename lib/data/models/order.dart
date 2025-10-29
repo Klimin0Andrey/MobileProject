@@ -15,6 +15,10 @@ class Order {
   final Timestamp createdAt;
   final String? courierId;
 
+  final String phone;
+  final String paymentMethod;
+  final String? comment;
+
   Order({
     this.id,
     required this.userId,
@@ -24,6 +28,10 @@ class Order {
     required this.address,
     required this.createdAt,
     this.courierId,
+    // --- ДОБАВЛЯЕМ В КОНСТРУКТОР ---
+    required this.phone,
+    required this.paymentMethod,
+    this.comment,
   });
 
   Map<String, dynamic> toMap() {
@@ -45,6 +53,10 @@ class Order {
       'address': address,
       'createdAt': createdAt,
       'courierId': courierId,
+      // --- СОХРАНЯЕМ НОВЫЕ ПОЛЯ В FIRESTORE ---
+      'phone': phone,
+      'paymentMethod': paymentMethod,
+      'comment': comment,
     };
   }
 
@@ -77,6 +89,10 @@ class Order {
       address: map['address'] ?? '',
       createdAt: map['createdAt'] ?? Timestamp.now(),
       courierId: map['courierId'],
+      // ДОБАВЛЯЕМ ЧТЕНИЕ НОВЫХ ПОЛЕЙ ИЗ FIRESTORE
+      phone: map['phone'] ?? '',
+      paymentMethod: map['paymentMethod'] ?? 'cash',
+      comment: map['comment'],
     );
   }
 }
