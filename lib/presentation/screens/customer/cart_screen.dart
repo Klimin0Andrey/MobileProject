@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/data/models/cart_item.dart';
+import 'package:linux_test2/presentation/screens/checkout/checkout_screen.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -63,13 +64,16 @@ class CartScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
+                    // В CartScreen замените кнопку:
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: Переход к оформлению заказа
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Функционал оформления заказа в разработке')),
+                        onPressed: cartProvider.items.isEmpty
+                            ? null
+                            : () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) => const CheckoutScreen()),
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -145,20 +149,15 @@ class CartItemCard extends StatelessWidget {
                 IconButton(
                   icon: const Icon(Icons.remove, size: 20),
                   onPressed: () {
-                    // TODO: Уменьшение количества
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Функционал изменения количества в разработке')),
-                    );
+                    context.read<CartProvider>().decrementQuantity(item.dish.id);
                   },
                 ),
-                Text('${item.quantity}', style: const TextStyle(fontSize: 16)),
+                Text('${item.quantity}',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                 IconButton(
                   icon: const Icon(Icons.add, size: 20),
                   onPressed: () {
-                    // TODO: Увеличение количества
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Функционал изменения количества в разработке')),
-                    );
+                    context.read<CartProvider>().incrementQuantity(item.dish.id);
                   },
                 ),
               ],

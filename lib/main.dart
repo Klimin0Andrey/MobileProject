@@ -6,6 +6,7 @@ import 'package:linux_test2/services/auth.dart';
 import 'package:linux_test2/presentation/screens/role_wrapper.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/presentation/providers/restaurant_provider.dart';
+import 'package:linux_test2/presentation/providers/order_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => CartProvider()),
         // ← Добавь CartProvider
         ChangeNotifierProvider(create: (context) => RestaurantProvider()),
+        ChangeNotifierProvider(create: (_) => OrderProvider()),
       ],
       child: MaterialApp(
         title: 'YumYum',
