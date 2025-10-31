@@ -7,6 +7,7 @@ import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/presentation/widgets/restaurant_card.dart';
 import 'package:linux_test2/presentation/screens/customer/cart_screen.dart';
 import 'package:linux_test2/presentation/screens/auth/authenticate.dart';
+import 'package:linux_test2/presentation/screens/customer/profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,7 +18,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final List<String> cuisineTypes = ['Все', 'Итальянская', 'Азиатская', 'Фастфуд', 'Десерты'];
+  final List<String> cuisineTypes = [
+    'Все',
+    'Итальянская',
+    'Азиатская',
+    'Фастфуд',
+    'Десерты',
+  ];
   int _currentTabIndex = 0;
 
   @override
@@ -29,7 +36,6 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: _buildAppBar(context, isGuest),
       body: _buildBody(isGuest),
       bottomNavigationBar: isGuest ? null : _buildBottomNavigationBar(),
-      floatingActionButton: isGuest ? _buildGuestFAB(context) : _buildCartFAB(context),
     );
   }
 
@@ -74,8 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return Column(
             children: [
               // Баннер для гостей
-              if (isGuest)
-                _buildGuestBanner(context),
+              if (isGuest) _buildGuestBanner(context),
 
               // Поиск
               Padding(
@@ -126,10 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Text(
                       'Найдено ресторанов: ${restaurantProvider.restaurants.length}',
-                      style: const TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
-                      ),
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                   ],
                 ),
@@ -141,31 +143,36 @@ class _HomeScreenState extends State<HomeScreen> {
               Expanded(
                 child: restaurantProvider.restaurants.isEmpty
                     ? const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.restaurant, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'Рестораны не найдены',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: Colors.grey,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.restaurant,
+                              size: 64,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Рестораны не найдены',
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
-                  ),
-                )
+                      )
                     : ListView.builder(
-                  itemCount: restaurantProvider.restaurants.length,
-                  itemBuilder: (context, index) {
-                    final restaurant = restaurantProvider.restaurants[index];
-                    return RestaurantCard(
-                      restaurant: restaurant,
-                      isGuest: isGuest,
-                    );
-                  },
-                ),
+                        itemCount: restaurantProvider.restaurants.length,
+                        itemBuilder: (context, index) {
+                          final restaurant =
+                              restaurantProvider.restaurants[index];
+                          return RestaurantCard(
+                            restaurant: restaurant,
+                            isGuest: isGuest,
+                          );
+                        },
+                      ),
               ),
             ],
           );
@@ -206,110 +213,65 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProfileTab() {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.person, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Профиль пользователя',
-            style: TextStyle(fontSize: 18, color: Colors.grey),
-          ),
-          SizedBox(height: 8),
-          Text('Здесь будет личный кабинет'),
-        ],
-      ),
-    );
+    return const ProfileScreen();
   }
 
-  BottomNavigationBar _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      currentIndex: _currentTabIndex,
-      onTap: (index) {
-        setState(() {
-          _currentTabIndex = index;
-        });
-      },
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.restaurant),
-          label: 'Рестораны',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.shopping_cart),
-          label: 'Корзина',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.person),
-          label: 'Профиль',
-        ),
-      ],
-    );
-  }
-
-  // ОБНОВЛЕННЫЙ МЕТОД ДЛЯ ГОСТЕЙ
-  Widget _buildGuestFAB(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Authenticate()),
-        );
-      },
-      backgroundColor: Colors.orange,
-      child: const Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.login, size: 20),
-          Text('Войти', style: TextStyle(fontSize: 10)),
-        ],
-      ),
-    );
-  }
-
-  // СУЩЕСТВУЮЩИЙ МЕТОД ДЛЯ КОРЗИНЫ (для авторизованных пользователей)
-  Widget _buildCartFAB(BuildContext context) {
+  Widget _buildBottomNavigationBar() {
     return Consumer<CartProvider>(
       builder: (context, cartProvider, child) {
-        if (_currentTabIndex == 1) return const SizedBox(); // Не показывать FAB на вкладке корзины
-
-        return FloatingActionButton(
-          onPressed: () {
+        return BottomNavigationBar(
+          currentIndex: _currentTabIndex,
+          onTap: (index) {
             setState(() {
-              _currentTabIndex = 1; // Переключаем на вкладку корзины
+              _currentTabIndex = index;
             });
           },
-          backgroundColor: Colors.orange,
-          child: Stack(
-            children: [
-              const Icon(Icons.shopping_cart, color: Colors.white),
-              if (cartProvider.totalItems > 0)
-                Positioned(
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    constraints: const BoxConstraints(
-                      minWidth: 16,
-                      minHeight: 16,
-                    ),
-                    child: Text(
-                      cartProvider.totalItems.toString(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
+          items: [
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.restaurant),
+              label: 'Рестораны',
+            ),
+            BottomNavigationBarItem(
+              icon: Stack(
+                children: [
+                  const Icon(Icons.shopping_cart_outlined),
+                  if (cartProvider.totalItems > 0)
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          cartProvider.totalItems > 99
+                              ? '99+'
+                              : cartProvider.totalItems.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                  ),
-                ),
-            ],
-          ),
+                ],
+              ),
+              activeIcon: const Icon(Icons.shopping_cart),
+              label: 'Корзина',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.person),
+              label: 'Профиль',
+            ),
+          ],
         );
       },
     );
