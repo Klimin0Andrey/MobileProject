@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/services/auth.dart';
-//import 'package:linux_test2/presentation/screens/customer/order_history_screen.dart';
+import 'package:linux_test2/presentation/screens/customer/order_history_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -100,9 +100,9 @@ class ProfileScreen extends StatelessWidget {
           icon: Icons.history,
           title: 'История заказов',
           onTap: () {
-            // Navigator.of(context).push(
-            //   MaterialPageRoute(builder: (context) => const OrderHistoryScreen()),
-            //);
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const OrderHistoryScreen()),
+            );
           },
         ),
         _buildProfileMenuItem(
