@@ -50,7 +50,7 @@ class CartScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: Theme.of(context).cardColor,
                   border: Border(top: BorderSide(color: Colors.grey.shade300)),
                 ),
                 child: Column(
@@ -58,13 +58,25 @@ class CartScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('Итого:', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        Text('${cartProvider.totalPrice.toStringAsFixed(2)} ₽',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
+                        Text(
+                          'Итого:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
+                        Text(
+                          '${cartProvider.totalPrice.toStringAsFixed(2)} ₽',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // В CartScreen замените кнопку:
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
@@ -73,7 +85,8 @@ class CartScreen extends StatelessWidget {
                             : () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const CheckoutScreen()),
+                            MaterialPageRoute(
+                                builder: (context) => const CheckoutScreen()),
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -102,6 +115,8 @@ class CartItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Padding(
@@ -132,12 +147,19 @@ class CartItemCard extends StatelessWidget {
                 children: [
                   Text(
                     item.dish.name,
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${item.dish.price} ₽',
-                    style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -147,15 +169,29 @@ class CartItemCard extends StatelessWidget {
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.remove, size: 20),
+                  icon: Icon(
+                    Icons.remove,
+                    size: 20,
+                    color: colorScheme.onSurface,
+                  ),
                   onPressed: () {
                     context.read<CartProvider>().decrementQuantity(item.dish.id);
                   },
                 ),
-                Text('${item.quantity}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                Text(
+                  '${item.quantity}',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
                 IconButton(
-                  icon: const Icon(Icons.add, size: 20),
+                  icon: Icon(
+                    Icons.add,
+                    size: 20,
+                    color: colorScheme.onSurface,
+                  ),
                   onPressed: () {
                     context.read<CartProvider>().incrementQuantity(item.dish.id);
                   },
@@ -169,7 +205,10 @@ class CartItemCard extends StatelessWidget {
               onPressed: () {
                 context.read<CartProvider>().removeFromCart(item.dish.id);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('${item.dish.name} удален из корзины')),
+                  SnackBar(
+                    content: Text('${item.dish.name} удален из корзины'),
+                    backgroundColor: colorScheme.surface,
+                  ),
                 );
               },
             ),

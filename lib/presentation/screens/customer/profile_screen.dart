@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/services/auth.dart';
 import 'package:linux_test2/presentation/screens/customer/order_history_screen.dart';
+import 'package:linux_test2/presentation/providers/theme_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -126,11 +127,20 @@ class ProfileScreen extends StatelessWidget {
             _showComingSoonDialog(context, 'Настройки уведомлений');
           },
         ),
-        _buildProfileMenuItem(
-          icon: Icons.dark_mode,
-          title: 'Тёмная тема',
-          onTap: () {
-            _showComingSoonDialog(context, 'Переключение темы');
+        // ТЁМНАЯ ТЕМА - ОБНОВЛЕННЫЙ ПУНКТ
+        Consumer<ThemeProvider>(
+          builder: (context, themeProvider, child) {
+            return ListTile(
+              leading: const Icon(Icons.dark_mode, color: Colors.orange),
+              title: const Text('Тёмная тема'),
+              trailing: Switch(
+                value: themeProvider.isDarkMode,
+                onChanged: (value) {
+                  themeProvider.toggleTheme();
+                },
+                activeColor: Colors.orange,
+              ),
+            );
           },
         ),
         _buildProfileMenuItem(

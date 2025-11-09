@@ -5,8 +5,10 @@ class OrderSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Center(
           child: Padding(
@@ -19,7 +21,7 @@ class OrderSuccessScreen extends StatelessWidget {
                   width: 100,
                   height: 100,
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
+                    color: Colors.green.withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -32,11 +34,12 @@ class OrderSuccessScreen extends StatelessWidget {
                 const SizedBox(height: 32),
 
                 // Заголовок
-                const Text(
+                Text(
                   'Заказ успешно оформлен!',
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -44,11 +47,11 @@ class OrderSuccessScreen extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // Описание
-                const Text(
+                Text(
                   'Спасибо за ваш заказ! Ожидайте звонка от оператора для подтверждения. Статус заказа можно отслеживать в истории заказов.',
                   style: TextStyle(
                     fontSize: 16,
-                    color: Colors.grey,
+                    color: colorScheme.onSurface.withOpacity(0.7),
                     height: 1.5,
                   ),
                   textAlign: TextAlign.center,
@@ -61,7 +64,6 @@ class OrderSuccessScreen extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      // Возвращаемся на главный экран, очищая весь стек
                       Navigator.of(context).popUntil((route) => route.isFirst);
                     },
                     style: ElevatedButton.styleFrom(
@@ -87,11 +89,9 @@ class OrderSuccessScreen extends StatelessWidget {
                 // Дополнительная кнопка
                 TextButton(
                   onPressed: () {
-                    // Здесь можно перейти к истории заказов
-                    // Пока просто возвращаемся
                     Navigator.of(context).popUntil((route) => route.isFirst);
                   },
-                  child: const Text(
+                  child: Text(
                     'Посмотреть историю заказов',
                     style: TextStyle(color: Colors.orange),
                   ),

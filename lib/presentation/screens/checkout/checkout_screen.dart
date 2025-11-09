@@ -19,12 +19,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _formKey = GlobalKey<FormState>();
 
   String _selectedPaymentMethod = 'card';
-  List<String> _savedAddresses = []; // Пока пустой, потом из профиля
+  List<String> _savedAddresses = [];
 
   @override
   void initState() {
     super.initState();
-    // Здесь потом будет загрузка сохраненных адресов из профиля
     _savedAddresses = [
       'ул. Ленина, д. 10, кв. 25',
       'пр. Мира, д. 45, кв. 12',
@@ -51,32 +50,53 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
 
-    // Подтверждение заказа
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Подтверждение заказа'),
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text(
+          'Подтверждение заказа',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Сумма: ${cartProvider.totalPrice.toStringAsFixed(2)} ₽'),
+            Text(
+              'Сумма: ${cartProvider.totalPrice.toStringAsFixed(2)} ₽',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
             const SizedBox(height: 8),
-            Text('Адрес: ${_addressController.text}'),
+            Text(
+              'Адрес: ${_addressController.text}',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
             const SizedBox(height: 8),
-            Text('Телефон: ${_phoneController.text}'),
+            Text(
+              'Телефон: ${_phoneController.text}',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
             const SizedBox(height: 8),
-            Text('Оплата: ${_selectedPaymentMethod == 'card' ? 'Картой онлайн' : 'Наличными'}'),
+            Text(
+              'Оплата: ${_selectedPaymentMethod == 'card' ? 'Картой онлайн' : 'Наличными'}',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
             if (_commentsController.text.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text('Комментарий: ${_commentsController.text}'),
+              Text(
+                'Комментарий: ${_commentsController.text}',
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              ),
             ],
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Отмена'),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
@@ -90,13 +110,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (confirmed != true) return;
 
     try {
-      // ИСПРАВЛЯЕМ ВЫЗОВ CREATEORDER - ПЕРЕДАЕМ ВСЕ ДАННЫЕ
       await orderProvider.createOrder(
         userId: user.uid,
         items: cartProvider.items,
         totalPrice: cartProvider.totalPrice,
         address: _addressController.text,
-        // ПЕРЕДАЕМ НОВЫЕ ДАННЫЕ ИЗ ФОРМЫ
         phone: _phoneController.text,
         paymentMethod: _selectedPaymentMethod,
         comment: _commentsController.text.isNotEmpty ? _commentsController.text : null,
@@ -104,7 +122,6 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       cartProvider.clearCart();
 
-      // Переходим на экран успеха
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const OrderSuccessScreen()),
@@ -125,19 +142,31 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Требуется авторизация'),
-        content: const Text('Для оформления заказа необходимо войти в аккаунт'),
+        backgroundColor: Theme.of(context).cardColor,
+        title: Text(
+          'Требуется авторизация',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        ),
+        content: Text(
+          'Для оформления заказа необходимо войти в аккаунт',
+          style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Отмена'),
+            child: Text(
+              'Отмена',
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            ),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // Здесь навигация на экран авторизации
             },
-            child: const Text('Войти'),
+            child: Text(
+              'Войти',
+              style: TextStyle(color: Theme.of(context).colorScheme.primary),
+            ),
           ),
         ],
       ),
@@ -145,22 +174,28 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildOrderSummary(CartProvider cartProvider) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
+      color: Theme.of(context).cardColor,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Состав заказа',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
             ),
             const SizedBox(height: 12),
             ...cartProvider.items.map((item) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 children: [
-                  // Изображение блюда
                   Container(
                     width: 40,
                     height: 40,
@@ -182,12 +217,15 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       children: [
                         Text(
                           item.dish.name,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: colorScheme.onSurface,
+                          ),
                         ),
                         Text(
                           '${item.dish.price} ₽ × ${item.quantity}',
                           style: TextStyle(
-                            color: Colors.grey[600],
+                            color: colorScheme.onSurface.withOpacity(0.7),
                             fontSize: 12,
                           ),
                         ),
@@ -196,19 +234,26 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   ),
                   Text(
                     '${item.totalPrice.toStringAsFixed(2)} ₽',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
                 ],
               ),
             )).toList(),
             const SizedBox(height: 12),
-            const Divider(),
+            Divider(color: colorScheme.onSurface.withOpacity(0.3)),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Итого:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
                 ),
                 Text(
                   '${cartProvider.totalPrice.toStringAsFixed(2)} ₽',
@@ -227,21 +272,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildAddressSection() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Адрес доставки',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _addressController,
-          decoration: const InputDecoration(
+          style: TextStyle(color: colorScheme.onSurface),
+          decoration: InputDecoration(
             labelText: 'Адрес доставки',
+            labelStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
             hintText: 'Улица, дом, квартира, этаж, домофон',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.location_on),
+            hintStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
+            border: const OutlineInputBorder(),
+            prefixIcon: Icon(Icons.location_on, color: colorScheme.onSurface.withOpacity(0.7)),
           ),
           maxLines: 2,
           validator: (value) {
@@ -259,39 +313,58 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildPaymentSection() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Способ оплаты',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
         ),
         const SizedBox(height: 12),
         Card(
+          color: Theme.of(context).cardColor,
           child: Column(
             children: [
               RadioListTile<String>(
-                title: const Row(
+                title: Row(
                   children: [
                     Icon(Icons.credit_card, color: Colors.blue),
-                    SizedBox(width: 8),
-                    Text('Картой онлайн'),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Картой онлайн',
+                      style: TextStyle(color: colorScheme.onSurface),
+                    ),
                   ],
                 ),
-                subtitle: const Text('Безопасная оплата через Tinkoff Bank'),
+                subtitle: Text(
+                  'Безопасная оплата через Tinkoff Bank',
+                  style: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
+                ),
                 value: 'card',
                 groupValue: _selectedPaymentMethod,
                 onChanged: (value) => setState(() => _selectedPaymentMethod = value!),
               ),
               RadioListTile<String>(
-                title: const Row(
+                title: Row(
                   children: [
                     Icon(Icons.money, color: Colors.green),
-                    SizedBox(width: 8),
-                    Text('Наличными'),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Наличными',
+                      style: TextStyle(color: colorScheme.onSurface),
+                    ),
                   ],
                 ),
-                subtitle: const Text('Оплата при получении заказа'),
+                subtitle: Text(
+                  'Оплата при получении заказа',
+                  style: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
+                ),
                 value: 'cash',
                 groupValue: _selectedPaymentMethod,
                 onChanged: (value) => setState(() => _selectedPaymentMethod = value!),
@@ -304,21 +377,30 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Widget _buildContactSection() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Контактные данные',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: colorScheme.onSurface,
+          ),
         ),
         const SizedBox(height: 12),
         TextFormField(
           controller: _phoneController,
-          decoration: const InputDecoration(
+          style: TextStyle(color: colorScheme.onSurface),
+          decoration: InputDecoration(
             labelText: 'Телефон для связи',
+            labelStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
             hintText: '+7 XXX XXX XX XX',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.phone),
+            hintStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
+            border: const OutlineInputBorder(),
+            prefixIcon: Icon(Icons.phone, color: colorScheme.onSurface.withOpacity(0.7)),
           ),
           keyboardType: TextInputType.phone,
           validator: (value) {
@@ -334,11 +416,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         const SizedBox(height: 16),
         TextFormField(
           controller: _commentsController,
-          decoration: const InputDecoration(
+          style: TextStyle(color: colorScheme.onSurface),
+          decoration: InputDecoration(
             labelText: 'Комментарий к заказу (необязательно)',
+            labelStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
             hintText: 'Например: домофон не работает, этаж...',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.comment),
+            hintStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
+            border: const OutlineInputBorder(),
+            prefixIcon: Icon(Icons.comment, color: colorScheme.onSurface.withOpacity(0.7)),
           ),
           maxLines: 3,
         ),
@@ -367,36 +452,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Состав заказа
                     _buildOrderSummary(cartProvider),
-
                     const SizedBox(height: 24),
-
-                    // 2. Адрес доставки
                     _buildAddressSection(),
-
                     const SizedBox(height: 24),
-
-                    // 3. Способ оплаты
                     _buildPaymentSection(),
-
                     const SizedBox(height: 24),
-
-                    // 4. Контактные данные и комментарий
                     _buildContactSection(),
-
                     const SizedBox(height: 32),
                   ],
                 ),
               ),
             ),
-
-            // Кнопка оформления (фиксированная внизу)
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                color: Theme.of(context).cardColor,
+                border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
               ),
               child: SizedBox(
                 width: double.infinity,
