@@ -4,6 +4,7 @@ import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/services/auth.dart';
 import 'package:linux_test2/presentation/screens/customer/order_history_screen.dart';
 import 'package:linux_test2/presentation/providers/theme_provider.dart';
+import 'package:linux_test2/presentation/screens/customer/support_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -147,7 +148,9 @@ class ProfileScreen extends StatelessWidget {
           icon: Icons.help,
           title: 'Помощь и поддержка',
           onTap: () {
-            _showComingSoonDialog(context, 'Помощь и поддержка');
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const SupportScreen()),
+            );
           },
         ),
 

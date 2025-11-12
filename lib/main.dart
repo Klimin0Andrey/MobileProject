@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:linux_test2/presentation/providers/support_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/services/auth.dart';
@@ -34,6 +35,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => RestaurantProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => SupportProvider()),
       ],
       child: Consumer<ThemeProvider>( // ← оборачиваем в Consumer
         builder: (context, themeProvider, child) {
