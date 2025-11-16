@@ -5,6 +5,7 @@ import 'package:linux_test2/services/auth.dart';
 import 'package:linux_test2/presentation/screens/customer/order_history_screen.dart';
 import 'package:linux_test2/presentation/providers/theme_provider.dart';
 import 'package:linux_test2/presentation/screens/customer/support_screen.dart';
+import 'package:linux_test2/presentation/screens/customer/favorites_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -118,7 +119,9 @@ class ProfileScreen extends StatelessWidget {
           icon: Icons.favorite,
           title: 'Избранные рестораны',
           onTap: () {
-            _showComingSoonDialog(context, 'Избранные рестораны');
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+            );
           },
         ),
         _buildProfileMenuItem(
@@ -132,7 +135,10 @@ class ProfileScreen extends StatelessWidget {
         Consumer<ThemeProvider>(
           builder: (context, themeProvider, child) {
             return ListTile(
-              leading: const Icon(Icons.dark_mode, color: Colors.orange),
+              leading: Icon(
+                themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
+                color: Colors.orange,
+              ),
               title: const Text('Тёмная тема'),
               trailing: Switch(
                 value: themeProvider.isDarkMode,

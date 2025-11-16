@@ -130,4 +130,50 @@ class DatabaseService {
       );
     }).toList();
   }
+
+  // Добавьте эти методы в класс DatabaseService:
+
+// Добавить ресторан в избранное
+  Future<void> addToFavorites(String restaurantId) async {
+    return await userCollection.doc(uid).update({
+      'favorites': FieldValue.arrayUnion([restaurantId])
+    });
+  }
+
+// Удалить ресторан из избранного
+  Future<void> removeFromFavorites(String restaurantId) async {
+    return await userCollection.doc(uid).update({
+      'favorites': FieldValue.arrayRemove([restaurantId])
+    });
+  }
+
+// Получить избранные рестораны
+  Stream<List<Restaurant>> get favoriteRestaurants {
+    return userCollection.doc(uid).snapshots().asyncMap((userSnapshot) async {
+      final userData = userSnapshot.data() as Map<String, dynamic>?;
+      final favoriteIds = List<String>.from(userData?['favorites'] ?? []);
+
+      if (favoriteIds.isEmpty) return [];
+
+      // Получаем рестораны по ID из избранного
+      final restaurantsSnapshot = await restaurantCollection
+          .where(FieldPath.documentId, whereIn: favoriteIds)
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      return restaurantsSnapshot.docs
+          .map((doc) => _restaurantFromSnapshot(doc))
+          .toList();
+    });
+  }
+
+// Проверить, находится ли ресторан в избранном
+  Stream<bool> isRestaurantFavorite(String restaurantId) {
+    return userCollection.doc(uid).snapshots().map((snapshot) {
+      final data = snapshot.data() as Map<String, dynamic>?;
+      final favorites = List<String>.from(data?['favorites'] ?? []);
+      return favorites.contains(restaurantId);
+    });
+  }
+
 }
