@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:linux_test2/data/models/cart_item.dart';
 import 'package:linux_test2/data/models/dish.dart';
+import 'package:linux_test2/data/models/address.dart';
 
 class CartProvider with ChangeNotifier {
   final List<CartItem> _items = [];
+  DeliveryAddress? _selectedAddress;
 
   List<CartItem> get items => _items;
   double get totalPrice => _items.fold(0, (sum, item) => sum + item.totalPrice);
   int get totalItems => _items.fold(0, (sum, item) => sum + item.quantity);
+  DeliveryAddress? get selectedAddress => _selectedAddress;
+
+  // Проверка готовности к заказу
+  bool get isReadyForCheckout {
+    return _selectedAddress != null && items.isNotEmpty;
+  }
 
   void addToCart(Dish dish) {
     final existingIndex = _items.indexWhere((item) => item.dish.id == dish.id);
@@ -27,6 +35,7 @@ class CartProvider with ChangeNotifier {
 
   void clearCart() {
     _items.clear();
+    _selectedAddress = null;
     notifyListeners();
   }
 
@@ -67,4 +76,14 @@ class CartProvider with ChangeNotifier {
     return _items.any((item) => item.dish.id == dishId);
   }
 
+  // ✅ НОВЫЕ МЕТОДЫ ДЛЯ РАБОТЫ С АДРЕСАМИ
+  void setDeliveryAddress(DeliveryAddress address) {
+    _selectedAddress = address;
+    notifyListeners();
+  }
+
+  void clearDeliveryAddress() {
+    _selectedAddress = null;
+    notifyListeners();
+  }
 }

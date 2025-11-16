@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:linux_test2/data/models/cart_item.dart';
 import 'package:linux_test2/data/models/dish.dart';
-
+import 'package:linux_test2/data/models/address.dart';
 
 enum OrderStatus { pending, processing, delivering, completed, cancelled }
 
@@ -11,10 +11,11 @@ class Order {
   final List<CartItem> items;
   final double totalPrice;
   final OrderStatus status;
-  final String address;
+  final DeliveryAddress
+  deliveryAddress; // ✅ ИЗМЕНЕНО: DeliveryAddress вместо String
+  final String deliveryAddressString; // ✅ ДОБАВЛЕНО: для отображения
   final Timestamp createdAt;
   final String? courierId;
-
   final String phone;
   final String paymentMethod;
   final String? comment;
@@ -25,14 +26,13 @@ class Order {
     required this.items,
     required this.totalPrice,
     this.status = OrderStatus.pending,
-    required this.address,
+    required this.deliveryAddress,
     required this.createdAt,
     this.courierId,
-    // --- ДОБАВЛЯЕМ В КОНСТРУКТОР ---
     required this.phone,
     required this.paymentMethod,
     this.comment,
-  });
+  }) : deliveryAddressString = deliveryAddress.fullAddress;
 
   Map<String, dynamic> toMap() {
     return {
@@ -44,16 +44,16 @@ class Order {
               'dishName': item.dish.name,
               'quantity': item.quantity,
               'price': item.dish.price,
-              'imageUrl': item.dish.imageUrl, // Добавьте это поле
+              'imageUrl': item.dish.imageUrl,
             },
           )
           .toList(),
       'totalPrice': totalPrice,
       'status': status.toString().split('.').last,
-      'address': address,
+      'deliveryAddress': deliveryAddress.toMap(),
+      'deliveryAddressString': deliveryAddressString,
       'createdAt': createdAt,
       'courierId': courierId,
-      // --- СОХРАНЯЕМ НОВЫЕ ПОЛЯ В FIRESTORE ---
       'phone': phone,
       'paymentMethod': paymentMethod,
       'comment': comment,
@@ -61,21 +61,39 @@ class Order {
   }
 
   static Order fromMap(Map<String, dynamic> map, String documentId) {
+    // ✅ ИЗМЕНЕНО: обработка адреса с обратной совместимостью
+    DeliveryAddress address;
+    if (map['deliveryAddress'] != null) {
+      // Новый формат: объект адреса
+      final addressMap = Map<String, dynamic>.from(map['deliveryAddress']);
+      address = DeliveryAddress.fromMap(addressMap);
+    } else {
+      // Старый формат: строка адреса (для обратной совместимости)
+      address = DeliveryAddress(
+        id: 'legacy_${DateTime.now().millisecondsSinceEpoch}',
+        title: 'Адрес доставки',
+        address: map['address'] ?? '',
+        // старый формат
+        isDefault: false,
+        createdAt: DateTime.now(),
+      );
+    }
+
     return Order(
       id: documentId,
       userId: map['userId'] ?? '',
       items: List<CartItem>.from(
         (map['items'] as List).map(
-              (item) => CartItem(
+          (item) => CartItem(
             dish: Dish(
               id: item['dishId'] ?? '',
               name: item['dishName'] ?? '',
               price: (item['price'] as num).toDouble(),
               imageUrl: item['imageUrl'] ?? '',
-              category: item['category'] ?? 'main', // Добавьте это
-              description: item['description'] ?? '', // Добавьте это
-              isAvailable: item['isAvailable'] ?? true, // Добавьте это
-              restaurantId: item['restaurantId'] ?? '', // Добавьте это
+              category: item['category'] ?? 'main',
+              description: item['description'] ?? '',
+              isAvailable: item['isAvailable'] ?? true,
+              restaurantId: item['restaurantId'] ?? '',
             ),
             quantity: item['quantity'] ?? 1,
           ),
@@ -83,16 +101,25 @@ class Order {
       ),
       totalPrice: (map['totalPrice'] as num).toDouble(),
       status: OrderStatus.values.firstWhere(
-            (e) => e.toString().split('.').last == map['status'],
+        (e) => e.toString().split('.').last == map['status'],
         orElse: () => OrderStatus.pending,
       ),
-      address: map['address'] ?? '',
+      deliveryAddress: address,
       createdAt: map['createdAt'] ?? Timestamp.now(),
       courierId: map['courierId'],
-      // ДОБАВЛЯЕМ ЧТЕНИЕ НОВЫХ ПОЛЕЙ ИЗ FIRESTORE
       phone: map['phone'] ?? '',
       paymentMethod: map['paymentMethod'] ?? 'cash',
       comment: map['comment'],
     );
+  }
+
+  // ✅ ДОПОЛНИТЕЛЬНЫЙ МЕТОД: для получения строки адреса
+  String get formattedAddress {
+    return deliveryAddress.fullAddress;
+  }
+
+  // ✅ ДОПОЛНИТЕЛЬНЫЙ МЕТОД: для получения названия адреса
+  String get addressTitle {
+    return deliveryAddress.title;
   }
 }

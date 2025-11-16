@@ -4,6 +4,9 @@ import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/presentation/providers/order_provider.dart';
 import 'package:linux_test2/presentation/screens/checkout/order_success_screen.dart';
+import 'package:linux_test2/presentation/screens/checkout/address_selection_screen.dart';
+import 'package:linux_test2/data/models/address.dart';
+import 'package:linux_test2/presentation/providers/address_provider.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -13,26 +16,35 @@ class CheckoutScreen extends StatefulWidget {
 }
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
-  final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _commentsController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   String _selectedPaymentMethod = 'card';
-  List<String> _savedAddresses = [];
 
   @override
   void initState() {
     super.initState();
-    _savedAddresses = [
-      'ул. Ленина, д. 10, кв. 25',
-      'пр. Мира, д. 45, кв. 12',
-    ];
+    // Автоматически выбираем адрес по умолчанию при загрузке
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _selectDefaultAddress();
+    });
+  }
+
+  void _selectDefaultAddress() {
+    final cartProvider = context.read<CartProvider>();
+    final addressProvider = context.read<AddressProvider>();
+
+    if (cartProvider.selectedAddress == null && addressProvider.addresses.isNotEmpty) {
+      final defaultAddress = addressProvider.defaultAddress;
+      if (defaultAddress != null) {
+        cartProvider.setDeliveryAddress(defaultAddress);
+      }
+    }
   }
 
   @override
   void dispose() {
-    _addressController.dispose();
     _phoneController.dispose();
     _commentsController.dispose();
     super.dispose();
@@ -47,6 +59,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
     if (user == null) {
       _showAuthDialog(context);
+      return;
+    }
+
+    // Проверяем, что адрес выбран
+    if (cartProvider.selectedAddress == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Пожалуйста, выберите адрес доставки'),
+          backgroundColor: Colors.red,
+        ),
+      );
       return;
     }
 
@@ -68,7 +91,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Адрес: ${_addressController.text}',
+              'Адрес: ${cartProvider.selectedAddress!.fullAddress}', // ✅ ИСПОЛЬЗУЕМ fullAddress
               style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
             ),
             const SizedBox(height: 8),
@@ -114,7 +137,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         userId: user.uid,
         items: cartProvider.items,
         totalPrice: cartProvider.totalPrice,
-        address: _addressController.text,
+        deliveryAddress: cartProvider.selectedAddress!, // ✅ ПЕРЕДАЕМ ОБЪЕКТ АДРЕСА
         phone: _phoneController.text,
         paymentMethod: _selectedPaymentMethod,
         comment: _commentsController.text.isNotEmpty ? _commentsController.text : null,
@@ -225,7 +248,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         Text(
                           '${item.dish.price} ₽ × ${item.quantity}',
                           style: TextStyle(
-                            color: colorScheme.onSurface.withOpacity(0.7),
+                            color: colorScheme.onSurface.withValues(alpha: 0.7),
                             fontSize: 12,
                           ),
                         ),
@@ -243,7 +266,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
             )).toList(),
             const SizedBox(height: 12),
-            Divider(color: colorScheme.onSurface.withOpacity(0.3)),
+            Divider(color: colorScheme.onSurface.withValues(alpha: 0.3)),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -271,7 +294,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     );
   }
 
-  Widget _buildAddressSection() {
+  Widget _buildAddressSection(CartProvider cartProvider) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
@@ -286,29 +309,126 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           ),
         ),
         const SizedBox(height: 12),
-        TextFormField(
-          controller: _addressController,
-          style: TextStyle(color: colorScheme.onSurface),
-          decoration: InputDecoration(
-            labelText: 'Адрес доставки',
-            labelStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
-            hintText: 'Улица, дом, квартира, этаж, домофон',
-            hintStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
-            border: const OutlineInputBorder(),
-            prefixIcon: Icon(Icons.location_on, color: colorScheme.onSurface.withOpacity(0.7)),
-          ),
-          maxLines: 2,
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Введите адрес доставки';
-            }
-            if (value.trim().length < 10) {
-              return 'Адрес должен содержать минимум 10 символов';
-            }
-            return null;
-          },
-        ),
+
+        if (cartProvider.selectedAddress == null)
+          _buildNoAddressSelected(context)
+        else
+          _buildSelectedAddress(context, cartProvider.selectedAddress!),
       ],
+    );
+  }
+
+  Widget _buildNoAddressSelected(BuildContext context) {
+    return Card(
+      color: Theme.of(context).cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            const Icon(Icons.location_off, size: 48, color: Colors.grey),
+            const SizedBox(height: 12),
+            const Text(
+              'Адрес не выбран',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Выберите адрес для доставки заказа',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AddressSelectionScreen(),
+                    ),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Выбрать адрес доставки'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSelectedAddress(BuildContext context, DeliveryAddress address) {
+    return Card(
+      color: Theme.of(context).cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.location_on, color: Colors.green),
+                const SizedBox(width: 8),
+                Text(
+                  address.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (address.isDefault)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.green),
+                    ),
+                    child: const Text(
+                      'По умолчанию',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.green,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              address.fullAddress,
+              style: const TextStyle(fontSize: 14),
+            ),
+            if (address.comment != null && address.comment!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Комментарий: ${address.comment}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const AddressSelectionScreen(),
+                    ),
+                  );
+                },
+                child: const Text('Изменить адрес'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -344,7 +464,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
                 subtitle: Text(
                   'Безопасная оплата через Tinkoff Bank',
-                  style: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
+                  style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7)),
                 ),
                 value: 'card',
                 groupValue: _selectedPaymentMethod,
@@ -363,7 +483,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 ),
                 subtitle: Text(
                   'Оплата при получении заказа',
-                  style: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
+                  style: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7)),
                 ),
                 value: 'cash',
                 groupValue: _selectedPaymentMethod,
@@ -396,11 +516,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           style: TextStyle(color: colorScheme.onSurface),
           decoration: InputDecoration(
             labelText: 'Телефон для связи',
-            labelStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
+            labelStyle: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7)),
             hintText: '+7 XXX XXX XX XX',
-            hintStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
+            hintStyle: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.5)),
             border: const OutlineInputBorder(),
-            prefixIcon: Icon(Icons.phone, color: colorScheme.onSurface.withOpacity(0.7)),
+            prefixIcon: Icon(Icons.phone, color: colorScheme.onSurface.withValues(alpha: 0.7)),
           ),
           keyboardType: TextInputType.phone,
           validator: (value) {
@@ -419,11 +539,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
           style: TextStyle(color: colorScheme.onSurface),
           decoration: InputDecoration(
             labelText: 'Комментарий к заказу (необязательно)',
-            labelStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.7)),
+            labelStyle: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.7)),
             hintText: 'Например: домофон не работает, этаж...',
-            hintStyle: TextStyle(color: colorScheme.onSurface.withOpacity(0.5)),
+            hintStyle: TextStyle(color: colorScheme.onSurface.withValues(alpha: 0.5)),
             border: const OutlineInputBorder(),
-            prefixIcon: Icon(Icons.comment, color: colorScheme.onSurface.withOpacity(0.7)),
+            prefixIcon: Icon(Icons.comment, color: colorScheme.onSurface.withValues(alpha: 0.7)),
           ),
           maxLines: 3,
         ),
@@ -454,7 +574,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   children: [
                     _buildOrderSummary(cartProvider),
                     const SizedBox(height: 24),
-                    _buildAddressSection(),
+                    _buildAddressSection(cartProvider),
                     const SizedBox(height: 24),
                     _buildPaymentSection(),
                     const SizedBox(height: 24),
@@ -473,11 +593,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: orderProvider.isLoading || cartProvider.items.isEmpty
+                  onPressed: (orderProvider.isLoading || cartProvider.items.isEmpty || cartProvider.selectedAddress == null)
                       ? null
                       : () => _placeOrder(context),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
+                    backgroundColor: (cartProvider.selectedAddress != null && !orderProvider.isLoading && cartProvider.items.isNotEmpty)
+                        ? Colors.orange
+                        : Colors.grey,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
@@ -490,9 +612,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       strokeWidth: 2,
                     ),
                   )
-                      : const Text(
-                    'Подтвердить заказ',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      : Text(
+                    cartProvider.selectedAddress != null
+                        ? 'Подтвердить заказ'
+                        : 'Выберите адрес доставки',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
