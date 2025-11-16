@@ -2,6 +2,7 @@ import 'package:linux_test2/data/models/dish.dart';
 import 'package:linux_test2/data/models/restaurant.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:linux_test2/data/models/address.dart';
 
 class DatabaseService {
   final String uid;
@@ -49,12 +50,39 @@ class DatabaseService {
 
   UserData _userDataFromSnapshot(DocumentSnapshot snapshot) {
     final data = snapshot.data() as Map<String, dynamic>;
+
+    // ✅ ИСПРАВЛЕНО: Обработка адресов с обратной совместимостью
+    List<DeliveryAddress> addressesList = [];
+    final addressesData = data['addresses'];
+    if (addressesData is List) {
+      if (addressesData.isNotEmpty) {
+        final firstItem = addressesData.first;
+        if (firstItem is String) {
+          // Старый формат: List<String> - преобразуем в DeliveryAddress
+          addressesList = addressesData.map((addressString) {
+            return DeliveryAddress(
+              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              title: 'Адрес',
+              address: addressString,
+              isDefault: addressesList.isEmpty,
+              createdAt: DateTime.now(),
+            );
+          }).toList();
+        } else if (firstItem is Map) {
+          // Новый формат: List<Map> - преобразуем в DeliveryAddress
+          addressesList = addressesData.map((addressMap) {
+            return DeliveryAddress.fromMap(Map<String, dynamic>.from(addressMap));
+          }).toList();
+        }
+      }
+    }
+
     return UserData(
       uid: uid,
       name: data['name'] ?? '',
       phone: data['phone'] ?? '',
       role: data['role'] ?? 'customer',
-      addresses: List<String>.from(data['addresses'] ?? []),
+      addresses: addressesList, // ✅ Теперь правильный тип
       favorites: List<String>.from(data['favorites'] ?? []),
       avatarUrl: data['avatarUrl'],
     );
@@ -173,6 +201,14 @@ class DatabaseService {
       final data = snapshot.data() as Map<String, dynamic>?;
       final favorites = List<String>.from(data?['favorites'] ?? []);
       return favorites.contains(restaurantId);
+    });
+  }
+
+  // ✅ НОВЫЙ МЕТОД: Обновление адресов пользователя
+  Future<void> updateUserAddresses(List<DeliveryAddress> addresses) async {
+    final addressesMap = addresses.map((addr) => addr.toMap()).toList();
+    return await userCollection.doc(uid).update({
+      'addresses': addressesMap,
     });
   }
 

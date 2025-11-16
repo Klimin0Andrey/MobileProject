@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/services/database.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:linux_test2/data/models/address.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -20,13 +21,40 @@ class AuthService {
 
       if (doc.exists) {
         final data = doc.data()!;
+
+        // ✅ ИСПРАВЛЕНО: Обработка адресов с обратной совместимостью
+        List<DeliveryAddress> addressesList = [];
+        final addressesData = data['addresses'];
+        if (addressesData is List) {
+          if (addressesData.isNotEmpty) {
+            final firstItem = addressesData.first;
+            if (firstItem is String) {
+              // Старый формат: List<String> - преобразуем в DeliveryAddress
+              addressesList = addressesData.map((addressString) {
+                return DeliveryAddress(
+                  id: DateTime.now().millisecondsSinceEpoch.toString(),
+                  title: 'Адрес',
+                  address: addressString,
+                  isDefault: addressesList.isEmpty,
+                  createdAt: DateTime.now(),
+                );
+              }).toList();
+            } else if (firstItem is Map) {
+              // Новый формат: List<Map> - преобразуем в DeliveryAddress
+              addressesList = addressesData.map((addressMap) {
+                return DeliveryAddress.fromMap(Map<String, dynamic>.from(addressMap));
+              }).toList();
+            }
+          }
+        }
+
         return AppUser(
           uid: user.uid,
           email: data['email'] ?? user.email ?? '',
           role: data['role'] ?? 'customer',
           name: data['name'] ?? '',
           phone: data['phone'] ?? '',
-          addresses: List<String>.from(data['addresses'] ?? []),
+          addresses: addressesList, // ✅ Теперь правильный тип
           favorites: List<String>.from(data['favorites'] ?? []),
           avatarUrl: data['avatarUrl'],
         );
@@ -38,7 +66,7 @@ class AuthService {
           role: 'customer',
           name: '',
           phone: '',
-          addresses: [],
+          addresses: [], // ✅ Пустой список DeliveryAddress
           favorites: [],
           avatarUrl: null,
         );

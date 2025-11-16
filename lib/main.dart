@@ -9,6 +9,7 @@ import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/presentation/providers/restaurant_provider.dart';
 import 'package:linux_test2/presentation/providers/order_provider.dart';
 import 'package:linux_test2/presentation/providers/theme_provider.dart';
+import 'package:linux_test2/presentation/providers/address_provider.dart';
 import 'package:linux_test2/core/themes/app_themes.dart';
 
 void main() async {
@@ -23,27 +24,55 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      // ← Замени StreamProvider на MultiProvider
       providers: [
         Provider<AuthService>(create: (_) => AuthService()),
 
         StreamProvider<AppUser?>.value(
           value: AuthService().user,
           initialData: null,
+          catchError: (_, error) {
+            debugPrint('Error in user stream: $error');
+            return null;
+          },
         ),
         ChangeNotifierProvider(create: (context) => CartProvider()),
         ChangeNotifierProvider(create: (context) => RestaurantProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => SupportProvider()),
+
+        // ✅ ДОБАВЛЯЕМ AddressProvider с зависимостью от пользователя
+        ChangeNotifierProxyProvider<AppUser?, AddressProvider>(
+          create: (context) => AddressProvider(uid: ''),
+          update: (context, user, previousProvider) {
+            // Если пользователь изменился, создаем новый провайдер
+            if (user == null) {
+              return AddressProvider(uid: '');
+            }
+
+            // Если провайдер уже существует и пользователь тот же, возвращаем его
+            if (previousProvider != null && previousProvider.uid == user.uid) {
+              return previousProvider;
+            }
+
+            // Создаем новый провайдер для нового пользователя
+            return AddressProvider(uid: user.uid);
+          },
+        ),
       ],
-      child: Consumer<ThemeProvider>( // ← оборачиваем в Consumer
+      child: Consumer<ThemeProvider>(
+        // ← оборачиваем в Consumer
         builder: (context, themeProvider, child) {
           return MaterialApp(
             title: 'YumYum',
-            theme: AppThemes.lightTheme, // ← используем светлую тему
-            darkTheme: AppThemes.darkTheme, // ← используем тёмную тему
-            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light, // ← управляем темой
+            theme: AppThemes.lightTheme,
+            // ← используем светлую тему
+            darkTheme: AppThemes.darkTheme,
+            // ← используем тёмную тему
+            themeMode: themeProvider.isDarkMode
+                ? ThemeMode.dark
+                : ThemeMode.light,
+            // ← управляем темой
             home: const RoleBasedWrapper(),
             debugShowCheckedModeBanner: false,
           );
