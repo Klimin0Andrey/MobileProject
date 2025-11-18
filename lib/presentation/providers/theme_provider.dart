@@ -3,55 +3,40 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ThemeProvider with ChangeNotifier {
   bool _isDarkMode = false;
-  bool _isGuestMode = false;
-  static const String _themeKey = 'isDarkMode';
-  bool _isInitialized = false;
+  static const String _themeKeyPrefix = 'theme_'; // Используем префикс
 
   bool get isDarkMode => _isDarkMode;
-  bool get isGuestMode => _isGuestMode;
 
-  ThemeProvider() {
-    _loadTheme();
+  // Создает уникальный ключ для пользователя
+  String _getUserThemeKey(String uid) => '$_themeKeyPrefix$uid';
+
+  Future<void> _saveTheme(String uid, bool isDark) async {
+    if (uid.isEmpty) return; // Не сохраняем для пустого uid
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_getUserThemeKey(uid), isDark);
   }
 
-  // Загрузка темы из SharedPreferences
-  Future<void> _loadTheme() async {
+  // ✅ ИЗМЕНЕНИЕ 1: Метод теперь требует UID для загрузки темы
+  Future<void> loadUserTheme(String uid) async {
+    if (uid.isEmpty) return; // Не загружаем для пустого uid
     final prefs = await SharedPreferences.getInstance();
-    _isDarkMode = prefs.getBool(_themeKey) ?? false;
-    _isInitialized = true;
+    // Загружаем по уникальному ключу, по умолчанию - светлая тема (false)
+    _isDarkMode = prefs.getBool(_getUserThemeKey(uid)) ?? false;
     notifyListeners();
   }
 
-  // Сохранение темы в SharedPreferences
-  Future<void> _saveTheme(bool isDark) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_themeKey, isDark);
-  }
-
-  void toggleTheme() {
-    if (_isGuestMode) return;
-
+  // ✅ ИЗМЕНЕНИЕ 2: Метод теперь требует UID для сохранения темы
+  void toggleTheme(String uid) {
     _isDarkMode = !_isDarkMode;
-    _saveTheme(_isDarkMode);
+    _saveTheme(uid, _isDarkMode); // Сохраняем для конкретного пользователя
     notifyListeners();
   }
 
-  void setTheme(bool isDark) {
-    _isDarkMode = isDark;
-    _saveTheme(_isDarkMode);
-    notifyListeners();
-  }
-
-  // Методы для управления гостевым режимом
-  void enableGuestMode() {
-    _isGuestMode = true;
-    _isDarkMode = false; // ← Принудительно светлая тема для гостей
-    notifyListeners();
-  }
-
-  void disableGuestMode() {
-    _isGuestMode = false;
-    _loadTheme(); // ← Загружаем сохраненную тему пользователя
-    notifyListeners();
+  // Этот метод для гостя остается без изменений. Он не трогает хранилище.
+  void setGuestMode() {
+    if (_isDarkMode) {
+      _isDarkMode = false;
+      notifyListeners();
+    }
   }
 }

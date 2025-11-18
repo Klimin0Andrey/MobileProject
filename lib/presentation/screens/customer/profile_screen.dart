@@ -1,4 +1,7 @@
+// lib/presentation/screens/customer/profile_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:linux_test2/presentation/screens/auth/authenticate.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/services/auth.dart';
@@ -14,12 +17,9 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<AppUser?>(context);
-
-    // Если пользователь не авторизован (гость)
     if (user == null) {
       return _buildGuestProfile(context);
     }
-
     return _buildUserProfile(context, user);
   }
 
@@ -47,8 +47,12 @@ class ProfileScreen extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // Навигация на экран авторизации
-                  // Нужно будет добавить правильный путь
+                  // ✅ ИСПРАВЛЕНО: Добавлена навигация на экран аутентификации
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const Authenticate(),
+                    ),
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.orange,
@@ -68,7 +72,6 @@ class ProfileScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.symmetric(vertical: 24.0),
       children: [
-        // Блок с информацией пользователя
         Column(
           children: [
             CircleAvatar(
@@ -85,7 +88,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              user.email.split('@').first, // Берем имя из email до @
+              user.name.isNotEmpty ? user.name : user.email.split('@').first,
               style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
@@ -95,46 +98,34 @@ class ProfileScreen extends StatelessWidget {
             ),
           ],
         ),
-
         const SizedBox(height: 32),
         const Divider(),
-
-        // Меню профиля
         _buildProfileMenuItem(
           icon: Icons.history,
           title: 'История заказов',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const OrderHistoryScreen()),
-            );
-          },
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const OrderHistoryScreen()),
+          ),
         ),
         _buildProfileMenuItem(
           icon: Icons.location_on,
           title: 'Мои адреса',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const AddressesScreen()),
-            );
-          },
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const AddressesScreen()),
+          ),
         ),
         _buildProfileMenuItem(
           icon: Icons.favorite,
           title: 'Избранные рестораны',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const FavoritesScreen()),
-            );
-          },
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const FavoritesScreen()),
+          ),
         ),
         _buildProfileMenuItem(
           icon: Icons.notifications,
           title: 'Уведомления',
-          onTap: () {
-            _showComingSoonDialog(context, 'Настройки уведомлений');
-          },
+          onTap: () => _showComingSoonDialog(context, 'Настройки уведомлений'),
         ),
-        // ТЁМНАЯ ТЕМА - ОБНОВЛЕННЫЙ ПУНКТ
         Consumer<ThemeProvider>(
           builder: (context, themeProvider, child) {
             return ListTile(
@@ -145,10 +136,8 @@ class ProfileScreen extends StatelessWidget {
               title: const Text('Тёмная тема'),
               trailing: Switch(
                 value: themeProvider.isDarkMode,
-                onChanged: (value) {
-                  themeProvider.toggleTheme();
-                },
-                activeThumbColor: Colors.orange,
+                onChanged: (value) => themeProvider.toggleTheme(user.uid),
+                activeColor: Colors.orange,
               ),
             );
           },
@@ -156,17 +145,12 @@ class ProfileScreen extends StatelessWidget {
         _buildProfileMenuItem(
           icon: Icons.help,
           title: 'Помощь и поддержка',
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(builder: (context) => const SupportScreen()),
-            );
-          },
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const SupportScreen()),
+          ),
         ),
-
         const Divider(),
         const SizedBox(height: 16),
-
-        // Кнопка выхода
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
           child: OutlinedButton(
@@ -208,11 +192,10 @@ class ProfileScreen extends StatelessWidget {
   }
 
   String _getUserInitials(AppUser user) {
-    final emailName = user.email.split('@').first;
-    if (emailName.length >= 2) {
-      return emailName.substring(0, 2).toUpperCase();
+    if (user.name.isNotEmpty) {
+      return user.name.substring(0, 1).toUpperCase();
     }
-    return 'П'; // По умолчанию, если email очень короткий
+    return user.email.substring(0, 1).toUpperCase();
   }
 
   void _showComingSoonDialog(BuildContext context, String feature) {
@@ -232,6 +215,8 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _showLogoutDialog(BuildContext context) {
+    final authService = Provider.of<AuthService>(context, listen: false);
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -244,8 +229,10 @@ class ProfileScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () async {
+              // ✅ ИЗМЕНЕНИЕ: Просто выходим из аккаунта.
+              // RoleWrapper сам позаботится о смене темы на гостевую.
               Navigator.of(context).pop();
-              await AuthService().signOut();
+              await authService.signOut();
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Выйти'),

@@ -1,3 +1,5 @@
+// lib/main.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:linux_test2/presentation/providers/support_provider.dart';
@@ -13,6 +15,7 @@ import 'package:linux_test2/presentation/providers/address_provider.dart';
 import 'package:linux_test2/core/themes/app_themes.dart';
 
 void main() async {
+  // Инициализация Flutter и Firebase
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   runApp(const MyApp());
@@ -23,56 +26,56 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Создаем ЕДИНСТВЕННЫЙ экземпляр AuthService для всего приложения
+    final authService = AuthService();
+
     return MultiProvider(
       providers: [
-        Provider<AuthService>(create: (_) => AuthService()),
+        // 2. Предоставляем этот экземпляр всем виджетам ниже по дереву
+        Provider<AuthService>.value(value: authService),
 
+        // 3. Используем тот же экземпляр для прослушивания изменений состояния аутентификации
         StreamProvider<AppUser?>.value(
-          value: AuthService().user,
+          value: authService.user,
           initialData: null,
           catchError: (_, error) {
-            debugPrint('Error in user stream: $error');
+            debugPrint('Ошибка в потоке пользователя (StreamProvider): $error');
             return null;
           },
         ),
-        ChangeNotifierProvider(create: (context) => CartProvider()),
-        ChangeNotifierProvider(create: (context) => RestaurantProvider()),
+
+        // Остальные провайдеры вашего приложения
+        ChangeNotifierProvider(create: (_) => CartProvider()),
+        ChangeNotifierProvider(create: (_) => RestaurantProvider()),
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => SupportProvider()),
 
-        // ✅ ДОБАВЛЯЕМ AddressProvider с зависимостью от пользователя
+        // Провайдер адресов, который зависит от текущего пользователя (AppUser)
         ChangeNotifierProxyProvider<AppUser?, AddressProvider>(
-          create: (context) => AddressProvider(uid: ''),
-          update: (context, user, previousProvider) {
-            // Если пользователь изменился, создаем новый провайдер
+          create: (_) => AddressProvider(uid: ''),
+          update: (_, user, previousProvider) {
+            // Если пользователь вышел (user == null), возвращаем провайдер с пустым uid
             if (user == null) {
               return AddressProvider(uid: '');
             }
-
-            // Если провайдер уже существует и пользователь тот же, возвращаем его
+            // Если пользователь не изменился, используем старый провайдер
             if (previousProvider != null && previousProvider.uid == user.uid) {
               return previousProvider;
             }
-
-            // Создаем новый провайдер для нового пользователя
+            // Если вошел новый пользователь, создаем для него новый провайдер адресов
             return AddressProvider(uid: user.uid);
           },
         ),
       ],
+      // Consumer следит за изменениями в ThemeProvider и перестраивает MaterialApp
       child: Consumer<ThemeProvider>(
-        // ← оборачиваем в Consumer
         builder: (context, themeProvider, child) {
           return MaterialApp(
             title: 'YumYum',
             theme: AppThemes.lightTheme,
-            // ← используем светлую тему
             darkTheme: AppThemes.darkTheme,
-            // ← используем тёмную тему
-            themeMode: themeProvider.isDarkMode
-                ? ThemeMode.dark
-                : ThemeMode.light,
-            // ← управляем темой
+            themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
             home: const RoleBasedWrapper(),
             debugShowCheckedModeBanner: false,
           );
