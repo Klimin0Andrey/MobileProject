@@ -4,6 +4,7 @@ import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/presentation/providers/order_provider.dart';
 import 'package:linux_test2/presentation/widgets/order_card.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:linux_test2/presentation/screens/home_screen.dart';
 
 class OrderHistoryScreen extends StatefulWidget {
   const OrderHistoryScreen({super.key});
@@ -150,7 +151,12 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
                     const SizedBox(height: 32),
                     ElevatedButton(
                       onPressed: () {
-                        Navigator.of(context).popUntil((route) => route.isFirst);
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(
+                            builder: (context) => const HomeScreen(),
+                          ),
+                              (route) => false,
+                        );
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange,

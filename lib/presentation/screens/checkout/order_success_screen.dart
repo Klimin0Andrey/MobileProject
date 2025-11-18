@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:linux_test2/presentation/screens/customer/order_history_screen.dart';
+import 'package:linux_test2/presentation/screens/home_screen.dart';
 
 class OrderSuccessScreen extends StatelessWidget {
   const OrderSuccessScreen({super.key});
@@ -64,7 +66,12 @@ class OrderSuccessScreen extends StatelessWidget {
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
-                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (context) => const HomeScreen(),
+                        ),
+                            (route) => false,
+                      );
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.orange,
@@ -89,7 +96,11 @@ class OrderSuccessScreen extends StatelessWidget {
                 // Дополнительная кнопка
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const OrderHistoryScreen(),
+                      ),
+                    );
                   },
                   child: Text(
                     'Посмотреть историю заказов',
