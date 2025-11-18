@@ -1,12 +1,28 @@
+// lib/presentation/screens/checkout/address_selection_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/address.dart';
 import 'package:linux_test2/presentation/providers/address_provider.dart';
-import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/presentation/screens/customer/add_edit_address_screen.dart';
 
-class AddressSelectionScreen extends StatelessWidget {
+class AddressSelectionScreen extends StatefulWidget {
   const AddressSelectionScreen({super.key});
+
+  @override
+  State<AddressSelectionScreen> createState() => _AddressSelectionScreenState();
+}
+
+class _AddressSelectionScreenState extends State<AddressSelectionScreen> {
+  // Локальное состояние для отслеживания ВЫБИРАЕМОГО адреса на ЭТОМ экране.
+  String? _selectedAddressId;
+
+  @override
+  void initState() {
+    super.initState();
+    // При инициализации пытаемся "предвыбрать" адрес по умолчанию.
+    _selectedAddressId = context.read<AddressProvider>().defaultAddress?.id;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +35,6 @@ class AddressSelectionScreen extends StatelessWidget {
       body: Consumer<AddressProvider>(
         builder: (context, addressProvider, child) {
           final addresses = addressProvider.addresses;
-          final cartProvider = Provider.of<CartProvider>(context, listen: false);
 
           if (addresses.isEmpty) {
             return _buildEmptyState(context);
@@ -32,12 +47,8 @@ class AddressSelectionScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   itemCount: addresses.length,
                   itemBuilder: (context, index) {
-                    return _buildAddressItem(
-                      context,
-                      addresses[index],
-                      addressProvider,
-                      cartProvider,
-                    );
+                    final address = addresses[index];
+                    return _buildAddressItem(context, address);
                   },
                 ),
               ),
@@ -50,6 +61,7 @@ class AddressSelectionScreen extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
+    // Этот виджет остается без изменений
     return Column(
       children: [
         Expanded(
@@ -59,7 +71,11 @@ class AddressSelectionScreen extends StatelessWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.location_off, size: 80, color: Colors.grey),
+                  const Icon(
+                    Icons.location_off_outlined,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
                   const SizedBox(height: 24),
                   const Text(
                     'Нет сохраненных адресов',
@@ -81,22 +97,22 @@ class AddressSelectionScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAddressItem(
-      BuildContext context,
-      DeliveryAddress address,
-      AddressProvider addressProvider,
-      CartProvider cartProvider,
-      ) {
+  Widget _buildAddressItem(BuildContext context, DeliveryAddress address) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
-        leading: Radio<DeliveryAddress>(
-          value: address,
-          groupValue: cartProvider.selectedAddress,
-          onChanged: (DeliveryAddress? value) {
+        onTap: () {
+          // ✅ ГЛАВНОЕ ИЗМЕНЕНИЕ: При нажатии на весь элемент...
+          // ...возвращаем ВЫБРАННЫЙ ОБЪЕКТ АДРЕСА на предыдущий экран.
+          Navigator.of(context).pop(address);
+        },
+        leading: Radio<String>(
+          value: address.id,
+          groupValue: _selectedAddressId,
+          onChanged: (String? value) {
+            // И при нажатии на радио-кнопку делаем то же самое.
             if (value != null) {
-              cartProvider.setDeliveryAddress(value);
-              Navigator.of(context).pop(); // Возвращаемся к оформлению заказа
+              Navigator.of(context).pop(address);
             }
           },
           activeColor: Colors.orange,
@@ -116,7 +132,10 @@ class AddressSelectionScreen extends StatelessWidget {
                 const SizedBox(width: 8),
                 if (address.isDefault)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.green.shade50,
                       borderRadius: BorderRadius.circular(12),
@@ -153,7 +172,8 @@ class AddressSelectionScreen extends StatelessWidget {
           onPressed: () {
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (context) => AddEditAddressScreen(addressId: address.id),
+                builder: (context) =>
+                    AddEditAddressScreen(addressId: address.id),
               ),
             );
           },
@@ -163,6 +183,7 @@ class AddressSelectionScreen extends StatelessWidget {
   }
 
   Widget _buildAddNewAddressButton(BuildContext context) {
+    // Этот виджет остается без изменений
     return Padding(
       padding: const EdgeInsets.all(16),
       child: SizedBox(
@@ -175,7 +196,7 @@ class AddressSelectionScreen extends StatelessWidget {
               ),
             );
           },
-          icon: const Icon(Icons.add_location_alt),
+          icon: const Icon(Icons.add_location_alt_outlined),
           label: const Text('Добавить новый адрес'),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.orange,
