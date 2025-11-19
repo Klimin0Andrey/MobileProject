@@ -11,7 +11,7 @@ class AddressProvider with ChangeNotifier {
   StreamSubscription? _userDataSubscription;
 
   AddressProvider({required this.uid})
-      : _databaseService = DatabaseService(uid: uid) {
+    : _databaseService = DatabaseService(uid: uid) {
     _loadAddresses();
   }
 
@@ -23,29 +23,33 @@ class AddressProvider with ChangeNotifier {
 
   List<DeliveryAddress> get addresses => List.unmodifiable(_addresses);
 
-  DeliveryAddress? get defaultAddress =>
-      _addresses.firstWhere(
-              (addr) => addr.isDefault,
-          orElse: () => _addresses.isNotEmpty ? _addresses.first : DeliveryAddress(
+  DeliveryAddress? get defaultAddress => _addresses.firstWhere(
+    (addr) => addr.isDefault,
+    orElse: () => _addresses.isNotEmpty
+        ? _addresses.first
+        : DeliveryAddress(
             id: '',
             title: '',
             address: '',
             isDefault: false,
             createdAt: DateTime.now(),
-          )
-      );
+          ),
+  );
 
   bool get hasAddresses => _addresses.isNotEmpty;
 
   Future<void> _loadAddresses() async {
     try {
       // ✅ РЕАЛЬНАЯ ЗАГРУЗКА ИЗ DATABASE SERVICE
-      _userDataSubscription = _databaseService.userData.listen((userData) {
-        _addresses = userData.addresses;
-        notifyListeners();
-      }, onError: (error) {
-        debugPrint('Error in user data stream: $error');
-      });
+      _userDataSubscription = _databaseService.userData.listen(
+        (userData) {
+          _addresses = userData.addresses;
+          notifyListeners();
+        },
+        onError: (error) {
+          debugPrint('Error in user data stream: $error');
+        },
+      );
     } catch (e) {
       debugPrint('Error loading addresses: $e');
       rethrow;
@@ -64,7 +68,9 @@ class AddressProvider with ChangeNotifier {
 
       // Если новый адрес - default, сбрасываем у остальных
       if (addressToAdd.isDefault) {
-        _addresses = _addresses.map((addr) => addr.copyWith(isDefault: false)).toList();
+        _addresses = _addresses
+            .map((addr) => addr.copyWith(isDefault: false))
+            .toList();
       }
 
       _addresses.add(addressToAdd);
@@ -77,13 +83,18 @@ class AddressProvider with ChangeNotifier {
   }
 
   // Обновление адреса
-  Future<void> updateAddress(String addressId, DeliveryAddress updatedAddress) async {
+  Future<void> updateAddress(
+    String addressId,
+    DeliveryAddress updatedAddress,
+  ) async {
     try {
       final index = _addresses.indexWhere((addr) => addr.id == addressId);
       if (index != -1) {
         // Если адрес стал default, сбрасываем у остальных
         if (updatedAddress.isDefault && !_addresses[index].isDefault) {
-          _addresses = _addresses.map((addr) => addr.copyWith(isDefault: false)).toList();
+          _addresses = _addresses
+              .map((addr) => addr.copyWith(isDefault: false))
+              .toList();
         }
 
         _addresses[index] = updatedAddress;
@@ -101,7 +112,9 @@ class AddressProvider with ChangeNotifier {
   // Удаление адреса
   Future<void> removeAddress(String addressId) async {
     try {
-      final addressToRemove = _addresses.firstWhere((addr) => addr.id == addressId);
+      final addressToRemove = _addresses.firstWhere(
+        (addr) => addr.id == addressId,
+      );
       final wasDefault = addressToRemove.isDefault;
 
       _addresses.removeWhere((addr) => addr.id == addressId);
@@ -153,7 +166,9 @@ class AddressProvider with ChangeNotifier {
     try {
       // ✅ РЕАЛЬНОЕ СОХРАНЕНИЕ В DATABASE SERVICE
       await _databaseService.updateUserAddresses(_addresses);
-      debugPrint('💾 Saved ${_addresses.length} addresses to database for user $uid');
+      debugPrint(
+        '💾 Saved ${_addresses.length} addresses to database for user $uid',
+      );
     } catch (e) {
       debugPrint('Error saving addresses: $e');
       rethrow;
@@ -197,29 +212,4 @@ class AddressProvider with ChangeNotifier {
     await _saveAddresses(); // ✅ Сохраняем тестовые данные в БД
     notifyListeners();
   }
-
-
-  void _addSampleAddresses() {
-    _addresses = [
-      DeliveryAddress.create(
-        title: 'Дом',
-        address: 'ул. Пушкина, д. 15',
-        apartment: '25',
-        entrance: '3',
-        floor: '5',
-        intercom: '124',
-        comment: 'После 19:00',
-        isDefault: true,
-      ),
-      DeliveryAddress.create(
-        title: 'Работа',
-        address: 'пр. Ленина, д. 42, офис 305',
-        apartment: '305',
-        comment: 'С 9:00 до 18:00',
-        isDefault: false,
-      ),
-    ];
-    notifyListeners();
-  }
-
 }

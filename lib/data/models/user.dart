@@ -1,9 +1,10 @@
 // lib/data/models/user.dart
 
 import 'package:linux_test2/data/models/address.dart';
+import 'package:equatable/equatable.dart';
 
 // --- ЕДИНСТВЕННАЯ МОДЕЛЬ ПОЛЬЗОВАТЕЛЯ ---
-class AppUser {
+class AppUser extends Equatable {
   final String uid;
   final String email;
   final String role;
@@ -13,7 +14,7 @@ class AppUser {
   final List<String> favorites;
   final String? avatarUrl;
 
-  AppUser({
+  const AppUser({
     required this.uid,
     required this.email,
     required this.role,
@@ -23,6 +24,18 @@ class AppUser {
     required this.favorites,
     this.avatarUrl,
   });
+
+  @override
+  List<Object?> get props => [
+    uid,
+    email,
+    role,
+    name,
+    phone,
+    addresses,
+    favorites,
+    avatarUrl
+  ];
 
   Map<String, dynamic> toMap() {
     return {

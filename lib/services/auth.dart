@@ -1,83 +1,79 @@
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:linux_test2/data/models/user.dart';
-import 'package:linux_test2/services/database.dart';
+// lib/services/auth.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:linux_test2/data/models/address.dart';
+import 'package:linux_test2/data/models/user.dart';
+import 'package:rxdart/rxdart.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  // ✅ ИЗМЕНЕННЫЙ СТРИМ ДЛЯ РЕАКТИВНОСТИ
   Stream<AppUser?> get user {
-    return _auth.authStateChanges().asyncMap(_userFromFirebase);
-  }
-
-  // Преобразование User -> AppUser с данными из Firestore
-  Future<AppUser?> _userFromFirebase(User? user) async {
-    if (user == null) return null;
-
-    try {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-
-      if (doc.exists) {
-        final data = doc.data()!;
-
-        // ✅ ИСПРАВЛЕНО: Обработка адресов с обратной совместимостью
-        List<DeliveryAddress> addressesList = [];
-        final addressesData = data['addresses'];
-        if (addressesData is List) {
-          if (addressesData.isNotEmpty) {
-            final firstItem = addressesData.first;
-            if (firstItem is String) {
-              // Старый формат: List<String> - преобразуем в DeliveryAddress
-              addressesList = addressesData.map((addressString) {
-                return DeliveryAddress(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  title: 'Адрес',
-                  address: addressString,
-                  isDefault: addressesList.isEmpty,
-                  createdAt: DateTime.now(),
-                );
-              }).toList();
-            } else if (firstItem is Map) {
-              // Новый формат: List<Map> - преобразуем в DeliveryAddress
-              addressesList = addressesData.map((addressMap) {
-                return DeliveryAddress.fromMap(Map<String, dynamic>.from(addressMap));
-              }).toList();
-            }
-          }
-        }
-
-        return AppUser(
-          uid: user.uid,
-          email: data['email'] ?? user.email ?? '',
-          role: data['role'] ?? 'customer',
-          name: data['name'] ?? '',
-          phone: data['phone'] ?? '',
-          addresses: addressesList, // ✅ Теперь правильный тип
-          favorites: List<String>.from(data['favorites'] ?? []),
-          avatarUrl: data['avatarUrl'],
-        );
+    return _auth.authStateChanges().switchMap((firebaseUser) {
+      if (firebaseUser == null) {
+        // Если пользователь вышел, возвращаем стрим с одним null
+        return Stream.value(null);
       } else {
-        // Если документа нет, создаем базового пользователя
-        return AppUser(
-          uid: user.uid,
-          email: user.email ?? '',
-          role: 'customer',
-          name: '',
-          phone: '',
-          addresses: [], // ✅ Пустой список DeliveryAddress
-          favorites: [],
-          avatarUrl: null,
-        );
+        // Если пользователь вошел, подписываемся на его документ в Firestore.
+        // Любые изменения в документе (например, обновление avatarUrl)
+        // приведут к новому событию в этом стриме.
+        return _firestore
+            .collection('users')
+            .doc(firebaseUser.uid)
+            .snapshots() // snapshots() возвращает Stream<DocumentSnapshot>
+            .map(_userFromFirestore); // Преобразуем каждый снимок в AppUser
       }
-    } catch (e) {
-      print('Error in _userFromFirebase: $e');
-      return null;
-    }
+    });
   }
 
-  // Анонимный вход (если нужен)
+  // ✅ НОВЫЙ ВСПОМОГАТЕЛЬНЫЙ МЕТОД
+  // Преобразует DocumentSnapshot из Firestore в наш объект AppUser.
+  AppUser _userFromFirestore(DocumentSnapshot snapshot) {
+    final data = snapshot.data() as Map<String, dynamic>? ?? {};
+
+    List<DeliveryAddress> addressesList = [];
+    final addressesData = data['addresses'];
+    if (addressesData is List) {
+      if (addressesData.isNotEmpty) {
+        final firstItem = addressesData.first;
+        if (firstItem is String) { // Обратная совместимость
+          addressesList = addressesData.map((addressString) {
+            return DeliveryAddress(
+              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              title: 'Адрес',
+              address: addressString,
+              isDefault: addressesList.isEmpty,
+              createdAt: DateTime.now(),
+            );
+          }).toList();
+        } else if (firstItem is Map) {
+          addressesList = addressesData
+              .map((addressMap) =>
+              DeliveryAddress.fromMap(Map<String, dynamic>.from(addressMap)))
+              .toList();
+        }
+      }
+    }
+
+    return AppUser(
+      uid: snapshot.id,
+      email: data['email'] ?? '',
+      role: data['role'] ?? 'customer',
+      name: data['name'] ?? '',
+      phone: data['phone'] ?? '',
+      addresses: addressesList,
+      favorites: List<String>.from(data['favorites'] ?? []),
+      avatarUrl: data['avatarUrl'],
+    );
+  }
+
+
+  // --- ОСТАЛЬНЫЕ МЕТОДЫ ОСТАЮТСЯ БЕЗ ИЗМЕНЕНИЙ ---
+
+  // Анонимный вход
   Future<void> signInAnon() async {
     try {
       await _auth.signInAnonymously();
@@ -87,14 +83,13 @@ class AuthService {
     }
   }
 
-  // Вход - теперь возвращает Future<void> и пробрасывает ошибки
+  // Вход по email и паролю
   Future<void> signInWithEmailAndPassword(String email, String password) async {
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
-      // Не возвращаем ничего - стрим сам обновится
     } catch (e) {
       print('Sign in error: $e');
-      rethrow; // Пробрасываем ошибку для обработки в UI
+      rethrow;
     }
   }
 
@@ -107,16 +102,13 @@ class AuthService {
     required String role,
   }) async {
     try {
-      print('🚀 Начало регистрации: $email');
       final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       final user = userCredential.user;
-      print('✅ Пользователь создан в Firebase Auth: ${user?.uid}');
       if (user != null) {
-        // Создаем документ в Firestore
         await _firestore.collection('users').doc(user.uid).set({
           'uid': user.uid,
           'email': email,
@@ -128,9 +120,7 @@ class AuthService {
           'avatarUrl': null,
           'createdAt': FieldValue.serverTimestamp(),
         });
-        print('✅ Профиль создан в Firestore');
       }
-      print('🎉 Регистрация завершена успешно');
     } catch (e) {
       print('Registration error: $e');
       rethrow;

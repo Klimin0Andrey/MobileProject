@@ -1,5 +1,7 @@
 // lib/data/models/address.dart
-class DeliveryAddress {
+import 'package:equatable/equatable.dart';
+
+class DeliveryAddress extends Equatable {
   final String id;
   final String title;
   final String address;
@@ -13,7 +15,7 @@ class DeliveryAddress {
   final double? lng;
   final DateTime createdAt;
 
-  DeliveryAddress({
+  const DeliveryAddress({
     required this.id,
     required this.title,
     required this.address,
@@ -27,6 +29,22 @@ class DeliveryAddress {
     this.lng,
     required this.createdAt,
   });
+
+  @override
+  List<Object?> get props => [
+    id,
+    title,
+    address,
+    apartment,
+    entrance,
+    floor,
+    intercom,
+    comment,
+    isDefault,
+    lat,
+    lng,
+    createdAt
+  ];
 
   // Конструктор для создания нового адреса
   DeliveryAddress.create({
