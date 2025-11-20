@@ -14,6 +14,7 @@ import 'package:linux_test2/presentation/providers/theme_provider.dart';
 import 'package:linux_test2/presentation/screens/customer/support_screen.dart';
 import 'package:linux_test2/presentation/screens/customer/favorites_screen.dart';
 import 'package:linux_test2/presentation/screens/customer/addresses_screen.dart';
+import 'package:linux_test2/presentation/screens/customer/edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -210,6 +211,19 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
                 style: const TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 32),
+              // ✅ ДОБАВЬТЕ ЭТОТ БЛОК
+              _buildProfileMenuItem(
+                icon: Icons.manage_accounts_outlined,
+                title: 'Настройки профиля',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      // Мы создадим этот экран на следующем шаге
+                      builder: (context) => const EditProfileScreen(),
+                    ),
+                  );
+                },
+              ),
               const Divider(),
               _buildProfileMenuItem(
                   icon: Icons.history,

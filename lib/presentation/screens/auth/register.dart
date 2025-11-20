@@ -5,6 +5,7 @@ import 'package:linux_test2/services/auth.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/shared/constants.dart';
 import 'package:linux_test2/shared/loading.dart';
+import 'package:mask_text_input_formatter/mask_text_input_formatter.dart';
 
 class Register extends StatefulWidget {
   final Function toggleView;
@@ -16,6 +17,13 @@ class Register extends StatefulWidget {
 }
 
 class _RegisterState extends State<Register> {
+
+  final _phoneMaskFormatter = MaskTextInputFormatter(
+      mask: '+7 (###) ###-##-##',
+      filter: {"#": RegExp(r'[0-9]')},
+      type: MaskAutoCompletionType.lazy
+  );
+
   final _formKey = GlobalKey<FormState>();
   bool loading = false;
 
@@ -70,11 +78,12 @@ class _RegisterState extends State<Register> {
                       ),
                       const SizedBox(height: 20.0),
                       TextFormField(
+                        inputFormatters: [_phoneMaskFormatter],
+                        keyboardType: TextInputType.phone,
                         decoration: textInputDecoration.copyWith(
                           hintText: 'Телефон',
                         ),
-                        validator: (val) =>
-                            val!.isEmpty ? 'Введите телефон' : null,
+                        validator: (val) => val!.isEmpty ? 'Введите телефон' : null,
                         onChanged: (val) => setState(() => phone = val),
                       ),
                       const SizedBox(height: 20.0),

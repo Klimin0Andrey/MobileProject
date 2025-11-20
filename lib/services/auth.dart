@@ -127,6 +127,16 @@ class AuthService {
     }
   }
 
+  // Метод для сброса пароля
+  Future<void> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      print('Ошибка отправки письма для сброса пароля: $e');
+      rethrow;
+    }
+  }
+
   // Выход
   Future<void> signOut() async {
     try {

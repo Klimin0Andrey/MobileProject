@@ -281,7 +281,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   onPressed:
                       (orderProvider.isLoading ||
                           cartProvider.items.isEmpty ||
-                          addressToShow == null)
+                          addressToShow == null || addressToShow.id.isEmpty)
                       ? null
                       : () => _placeOrder(context, addressToShow!),
                   style: ElevatedButton.styleFrom(
