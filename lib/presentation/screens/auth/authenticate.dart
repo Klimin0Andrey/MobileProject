@@ -23,6 +23,7 @@ class _AuthenticateState extends State<Authenticate> {
     if (showSignIn) {
       return SignIn(toggleView: toggleView);
     } else {
+      // Убедись, что файл Register тоже принимает toggleView
       return Register(toggleView: toggleView);
     }
   }
