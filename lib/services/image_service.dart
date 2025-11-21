@@ -1,11 +1,8 @@
-// lib/services/image_service.dart
-
 import 'dart:convert';
-import 'dart:typed_data'; // Необходимо для работы с байтами
+import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
-// Импортируем пакет 'image' с префиксом 'img', чтобы избежать конфликтов имен
-import 'package:image/image.dart' as img;
 
 class ImageService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -15,42 +12,34 @@ class ImageService {
     required String uid,
   }) async {
     try {
-      // 1. Читаем байты из файла
-      final Uint8List imageBytes = await imageFile.readAsBytes();
+      // Сжимаем изображение.
+      // minWidth/minHeight автоматически сохраняют пропорции.
+      // quality: 70 — оптимальный баланс размера и качества для аватарки.
+      final Uint8List? compressedBytes = await FlutterImageCompress.compressWithFile(
+        imageFile.path,
+        minWidth: 300,  // Уменьшили с 600 до 300 (для аватарки более чем достаточно)
+        minHeight: 300,
+        quality: 70,    // Немного уменьшили качество (было 85), визуально не заметно, но вес меньше
+        format: CompressFormat.jpeg,
+      );
 
-      // 2. Декодируем байты в объект изображения с помощью пакета 'image'
-      final img.Image? originalImage = img.decodeImage(imageBytes);
-
-      if (originalImage == null) {
-        throw Exception('Не удалось обработать изображение.');
+      if (compressedBytes == null) {
+        throw Exception('Не удалось сжать изображение.');
       }
 
-      // 3. Изменяем размер изображения, чтобы оно было не больше 600x600 пикселей.
-      // Пакет сам сохраняет соотношение сторон.
-      final img.Image resizedImage = img.copyResize(
-        originalImage,
-        width: 600,
-        height: 600,
-      );
-
-      // 4. Кодируем измененное изображение обратно в байты формата JPG с качеством 85%.
-      final Uint8List compressedBytes = Uint8List.fromList(
-        img.encodeJpg(resizedImage, quality: 85),
-      );
-
-      // 5. Кодируем сжатые байты в строку Base64
+      // Кодируем в Base64
       final String base64Image = base64Encode(compressedBytes);
       final String dataUrl = 'data:image/jpeg;base64,$base64Image';
 
-      // 6. Сохраняем строку в Firestore
+      // Сохраняем
       await _firestore.collection('users').doc(uid).update({
         'avatarUrl': dataUrl,
       });
 
-      print('Аватар успешно обновлен для пользователя: $uid');
+      print('Аватар успешно обновлен. Размер: ${(base64Image.length / 1024).toStringAsFixed(2)} KB');
 
     } catch (e) {
-      print('Ошибка при обработке и сохранении аватара: $e');
+      print('Ошибка при обработке аватара: $e');
       rethrow;
     }
   }

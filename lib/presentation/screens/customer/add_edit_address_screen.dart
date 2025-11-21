@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/address.dart';
 import 'package:linux_test2/presentation/providers/address_provider.dart';
+import 'package:linux_test2/presentation/screens/customer/map_selection_screen.dart';
 
 class AddEditAddressScreen extends StatefulWidget {
   final String? addressId;
@@ -25,6 +26,8 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
   bool _isDefault = false;
   bool _isLoading = false;
   DeliveryAddress? _editingAddress;
+  double? _lat;
+  double? _lng;
 
   @override
   void initState() {
@@ -36,7 +39,10 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
 
   void _loadAddressData() {
     if (widget.addressId != null) {
-      final addressProvider = Provider.of<AddressProvider>(context, listen: false);
+      final addressProvider = Provider.of<AddressProvider>(
+        context,
+        listen: false,
+      );
       final address = addressProvider.getAddressById(widget.addressId!);
 
       if (address != null) {
@@ -50,6 +56,9 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
           _intercomController.text = address.intercom ?? '';
           _commentController.text = address.comment ?? '';
           _isDefault = address.isDefault;
+          // Загружаем координаты
+          _lat = address.lat;
+          _lng = address.lng;
         });
       }
     }
@@ -67,13 +76,36 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
     super.dispose();
   }
 
+  Future<void> _pickFromMap() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const MapSelectionScreen()),
+    );
+
+    if (result != null && result is Map) {
+      setState(() {
+        // 1. Улица и дом -> в поле "Адрес"
+        if (result['fullAddress'] != null) {
+          _addressController.text = result['fullAddress'];
+        }
+
+        // 3. Сохраняем координаты
+        _lat = result['lat'];
+        _lng = result['lng'];
+      });
+    }
+  }
+
   Future<void> _saveAddress() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final addressProvider = Provider.of<AddressProvider>(context, listen: false);
+      final addressProvider = Provider.of<AddressProvider>(
+        context,
+        listen: false,
+      );
 
       if (_editingAddress != null) {
         // Редактирование существующего адреса
@@ -96,15 +128,23 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
               ? _commentController.text.trim()
               : null,
           isDefault: _isDefault,
+          // Сохраняем координаты
+          lat: _lat,
+          lng: _lng,
         );
 
-        await addressProvider.updateAddress(_editingAddress!.id, updatedAddress);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Адрес успешно обновлен'),
-            backgroundColor: Colors.green,
-          ),
+        await addressProvider.updateAddress(
+          _editingAddress!.id,
+          updatedAddress,
         );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Адрес успешно обновлен'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       } else {
         // Добавление нового адреса
         final newAddress = DeliveryAddress.create(
@@ -126,21 +166,26 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
               ? _commentController.text.trim()
               : null,
           isDefault: _isDefault,
+          // Сохраняем координаты
+          lat: _lat,
+          lng: _lng,
         );
 
         await addressProvider.addAddress(newAddress);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Адрес успешно добавлен'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Адрес успешно добавлен'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       }
 
-      Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       setState(() => _isLoading = false);
-      _showErrorDialog('Ошибка при сохранении адреса: $e');
+      if (mounted) _showErrorDialog('Ошибка при сохранении адреса: $e');
     }
   }
 
@@ -164,7 +209,9 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_editingAddress != null ? 'Редактировать адрес' : 'Добавить адрес'),
+        title: Text(
+          _editingAddress != null ? 'Редактировать адрес' : 'Добавить адрес',
+        ),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
         actions: [
@@ -178,151 +225,174 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              // Название адреса
-              TextFormField(
-                controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Название адреса *',
-                  hintText: 'Например: Дом, Работа, Родители',
-                  prefixIcon: Icon(Icons.title),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Введите название адреса';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Полный адрес
-              TextFormField(
-                controller: _addressController,
-                decoration: const InputDecoration(
-                  labelText: 'Адрес *',
-                  hintText: 'Например: ул. Ленина, д. 15',
-                  prefixIcon: Icon(Icons.location_on),
-                ),
-                maxLines: 2,
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Введите адрес';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-
-              // Дополнительные поля в строку
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _apartmentController,
+              padding: const EdgeInsets.all(16),
+              child: Form(
+                key: _formKey,
+                child: ListView(
+                  children: [
+                    // Название адреса
+                    TextFormField(
+                      controller: _titleController,
                       decoration: const InputDecoration(
-                        labelText: 'Квартира',
-                        hintText: '25',
+                        labelText: 'Название адреса *',
+                        hintText: 'Например: Дом, Работа, Родители',
+                        prefixIcon: Icon(Icons.title),
                       ),
-                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Введите название адреса';
+                        }
+                        return null;
+                      },
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _entranceController,
-                      decoration: const InputDecoration(
-                        labelText: 'Подъезд',
-                        hintText: '3',
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _floorController,
-                      decoration: const InputDecoration(
-                        labelText: 'Этаж',
-                        hintText: '5',
+                    // ✅ КНОПКА "УКАЗАТЬ НА КАРТЕ"
+                    TextButton.icon(
+                      onPressed: _pickFromMap,
+                      icon: const Icon(Icons.map, color: Colors.orange),
+                      label: const Text(
+                        'Указать на карте',
+                        style: TextStyle(
+                          color: Colors.orange,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      keyboardType: TextInputType.number,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: _intercomController,
-                      decoration: const InputDecoration(
-                        labelText: 'Домофон',
-                        hintText: '124',
+                      style: TextButton.styleFrom(
+                        alignment: Alignment.centerLeft,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
 
-              // Комментарий
-              TextFormField(
-                controller: _commentController,
-                decoration: const InputDecoration(
-                  labelText: 'Комментарий для курьера',
-                  hintText: 'Например: После 19:00, код от подъезда...',
-                  prefixIcon: Icon(Icons.comment),
-                ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 24),
-
-              // Адрес по умолчанию
-              SwitchListTile(
-                title: const Text('Использовать как основной адрес'),
-                subtitle: const Text('Будет автоматически подставляться при заказе'),
-                value: _isDefault,
-                onChanged: (value) => setState(() => _isDefault = value),
-                activeThumbColor: Colors.orange,
-              ),
-              const SizedBox(height: 32),
-
-              // Кнопка сохранения
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveAddress,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.white,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    // Полный адрес
+                    TextFormField(
+                      controller: _addressController,
+                      decoration: const InputDecoration(
+                        labelText: 'Адрес *',
+                        hintText: 'Например: ул. Ленина, д. 15',
+                        prefixIcon: Icon(Icons.location_on),
+                      ),
+                      maxLines: 2,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Введите адрес';
+                        }
+                        return null;
+                      },
                     ),
-                  )
-                      : Text(
-                    _editingAddress != null ? 'Сохранить изменения' : 'Добавить адрес',
-                    style: const TextStyle(fontSize: 16),
-                  ),
+                    const SizedBox(height: 16),
+
+                    // Дополнительные поля в строку
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _apartmentController,
+                            decoration: const InputDecoration(
+                              labelText: 'Квартира',
+                              hintText: '25',
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _entranceController,
+                            decoration: const InputDecoration(
+                              labelText: 'Подъезд',
+                              hintText: '3',
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _floorController,
+                            decoration: const InputDecoration(
+                              labelText: 'Этаж',
+                              hintText: '5',
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _intercomController,
+                            decoration: const InputDecoration(
+                              labelText: 'Домофон',
+                              hintText: '124',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Комментарий
+                    TextFormField(
+                      controller: _commentController,
+                      decoration: const InputDecoration(
+                        labelText: 'Комментарий для курьера',
+                        hintText: 'Например: После 19:00, код от подъезда...',
+                        prefixIcon: Icon(Icons.comment),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Адрес по умолчанию
+                    SwitchListTile(
+                      title: const Text('Использовать как основной адрес'),
+                      subtitle: const Text(
+                        'Будет автоматически подставляться при заказе',
+                      ),
+                      value: _isDefault,
+                      onChanged: (value) => setState(() => _isDefault = value),
+                      activeThumbColor: Colors.orange,
+                    ),
+                    const SizedBox(height: 32),
+
+                    // Кнопка сохранения
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _saveAddress,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                _editingAddress != null
+                                    ? 'Сохранить изменения'
+                                    : 'Добавить адрес',
+                                style: const TextStyle(fontSize: 16),
+                              ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
@@ -343,7 +413,10 @@ class _AddEditAddressScreenState extends State<AddEditAddressScreen> {
               setState(() => _isLoading = true);
 
               try {
-                final addressProvider = Provider.of<AddressProvider>(context, listen: false);
+                final addressProvider = Provider.of<AddressProvider>(
+                  context,
+                  listen: false,
+                );
                 await addressProvider.removeAddress(_editingAddress!.id);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Для буфера обмена
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart'; // Для звонков и почты
 import 'package:linux_test2/data/models/user.dart';
-//import 'package:linux_test2/services/support_service.dart';
 import 'package:linux_test2/presentation/providers/support_provider.dart';
+import 'package:linux_test2/presentation/screens/auth/authenticate.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -42,7 +44,7 @@ class _SupportScreenState extends State<SupportScreen> {
     try {
       await context.read<SupportProvider>().submitTicket(
         userId: user.uid,
-        userName: user.email.split('@').first,
+        userName: user.name.isNotEmpty ? user.name : user.email.split('@').first,
         userEmail: user.email,
         category: _selectedCategory,
         subject: _subjectController.text,
@@ -53,25 +55,76 @@ class _SupportScreenState extends State<SupportScreen> {
       _subjectController.clear();
       _messageController.clear();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ваше обращение отправлено! Мы ответим в течение 24 часов.'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ваше обращение отправлено! Мы ответим в течение 24 часов.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Ошибка при отправке: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Ошибка при отправке: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  // 📞 Логика звонка
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber.replaceAll(RegExp(r'[^\d+]'), ''),
+    );
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      _showError('Не удалось открыть приложение телефона');
+    }
+  }
+
+  // 📧 Логика email
+  Future<void> _sendEmail(String email) async {
+    final Uri launchUri = Uri(
+      scheme: 'mailto',
+      path: email,
+      query: 'subject=Вопрос из приложения YumYum',
+    );
+    if (await canLaunchUrl(launchUri)) {
+      await launchUrl(launchUri);
+    } else {
+      _showError('Не удалось открыть почтовый клиент');
+    }
+  }
+
+  // 📋 Логика копирования
+  void _copyToClipboard(String text, String label) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label скопирован в буфер обмена'),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   void _showAuthDialog(BuildContext context) {
@@ -88,10 +141,47 @@ class _SupportScreenState extends State<SupportScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
-              // TODO: Навигация на экран авторизации
-              // Navigator.pushNamed(context, '/login');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const Authenticate()),
+              );
             },
             child: const Text('Войти'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Помощь и поддержка'),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _buildFaqSection(),
+          const SizedBox(height: 24),
+          _buildContactFormSection(context),
+          const SizedBox(height: 24),
+          _buildContactInfoSection(), // Обновленная секция контактов
+          const SizedBox(height: 16),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 8.0),
+            child: Text(
+              'Обычно мы отвечаем на обращения в течение 1-2 часов в рабочее время',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ),
         ],
       ),
@@ -162,7 +252,7 @@ class _SupportScreenState extends State<SupportScreen> {
     );
   }
 
-  Widget _buildContactSection(BuildContext context) {
+  Widget _buildContactFormSection(BuildContext context) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -192,30 +282,12 @@ class _SupportScreenState extends State<SupportScreen> {
               DropdownButtonFormField<String>(
                 initialValue: _selectedCategory,
                 items: const [
-                  DropdownMenuItem(
-                    value: 'general',
-                    child: Text('Общий вопрос'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'order',
-                    child: Text('Проблема с заказом'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'payment',
-                    child: Text('Оплата'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'technical',
-                    child: Text('Техническая проблема'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'refund',
-                    child: Text('Возврат средств'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'other',
-                    child: Text('Другое'),
-                  ),
+                  DropdownMenuItem(value: 'general', child: Text('Общий вопрос')),
+                  DropdownMenuItem(value: 'order', child: Text('Проблема с заказом')),
+                  DropdownMenuItem(value: 'payment', child: Text('Оплата')),
+                  DropdownMenuItem(value: 'technical', child: Text('Техническая проблема')),
+                  DropdownMenuItem(value: 'refund', child: Text('Возврат средств')),
+                  DropdownMenuItem(value: 'other', child: Text('Другое')),
                 ],
                 onChanged: _isLoading ? null : (value) {
                   setState(() => _selectedCategory = value!);
@@ -224,12 +296,7 @@ class _SupportScreenState extends State<SupportScreen> {
                   border: OutlineInputBorder(),
                   contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Выберите категорию вопроса';
-                  }
-                  return null;
-                },
+                validator: (value) => (value == null || value.isEmpty) ? 'Выберите категорию' : null,
               ),
 
               const SizedBox(height: 16),
@@ -244,12 +311,8 @@ class _SupportScreenState extends State<SupportScreen> {
                   hintText: 'Кратко опишите суть проблемы',
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Введите тему обращения';
-                  }
-                  if (value.length < 5) {
-                    return 'Тема должна содержать минимум 5 символов';
-                  }
+                  if (value == null || value.isEmpty) return 'Введите тему обращения';
+                  if (value.length < 5) return 'Минимум 5 символов';
                   return null;
                 },
               ),
@@ -268,12 +331,8 @@ class _SupportScreenState extends State<SupportScreen> {
                 ),
                 maxLines: 5,
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Опишите вашу проблему';
-                  }
-                  if (value.length < 10) {
-                    return 'Описание должно содержать минимум 10 символов';
-                  }
+                  if (value == null || value.isEmpty) return 'Опишите вашу проблему';
+                  if (value.length < 10) return 'Минимум 10 символов';
                   return null;
                 },
               ),
@@ -281,10 +340,7 @@ class _SupportScreenState extends State<SupportScreen> {
               const SizedBox(height: 8),
               Text(
                 'Минимум 10 символов',
-                style: TextStyle(
-                  color: Colors.grey[600],
-                  fontSize: 12,
-                ),
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
               ),
 
               const SizedBox(height: 24),
@@ -324,7 +380,7 @@ class _SupportScreenState extends State<SupportScreen> {
     );
   }
 
-  Widget _buildInfoSection() {
+  Widget _buildContactInfoSection() {
     return Card(
       elevation: 2,
       child: Padding(
@@ -337,27 +393,33 @@ class _SupportScreenState extends State<SupportScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
+
+            // Телефон (Звонок + Копирование)
             _buildContactItem(
               icon: Icons.phone,
               title: 'Телефон поддержки',
               subtitle: '+7 (999) 123-45-67',
-              onTap: () {
-                // TODO: Реализовать звонок
-              },
+              onTap: () => _makePhoneCall('+79991234567'),
+              onLongPress: () => _copyToClipboard('+79991234567', 'Телефон'),
             ),
+
+            // Email (Почта + Копирование)
             _buildContactItem(
               icon: Icons.email,
               title: 'Email',
               subtitle: 'support@yumyum.ru',
-              onTap: () {
-                // TODO: Реализовать отправку email
-              },
+              onTap: () => _sendEmail('support@yumyum.ru'),
+              onLongPress: () => _copyToClipboard('support@yumyum.ru', 'Email'),
             ),
+
+            // Время работы (Статично)
             _buildContactItem(
               icon: Icons.access_time,
               title: 'Время работы',
               subtitle: 'Круглосуточно, 24/7',
             ),
+
+            // Чат (Заглушка)
             _buildContactItem(
               icon: Icons.chat,
               title: 'Онлайн-чат',
@@ -377,14 +439,32 @@ class _SupportScreenState extends State<SupportScreen> {
     required String title,
     required String subtitle,
     VoidCallback? onTap,
+    VoidCallback? onLongPress,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.orange),
-      title: Text(title),
-      subtitle: Text(subtitle),
+    return InkWell( // Добавил InkWell для обработки нажатий и Ripple эффекта
       onTap: onTap,
-      contentPadding: EdgeInsets.zero,
-      visualDensity: const VisualDensity(vertical: -2),
+      onLongPress: onLongPress,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0), // Увеличил зону нажатия
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.orange),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
+                  const SizedBox(height: 2),
+                  Text(subtitle, style: TextStyle(color: Colors.grey[600])),
+                ],
+              ),
+            ),
+            if (onTap != null) // Показываем иконку только если элемент кликабелен
+              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+          ],
+        ),
+      ),
     );
   }
 
@@ -398,41 +478,6 @@ class _SupportScreenState extends State<SupportScreen> {
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('ОК'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Помощь и поддержка'),
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildFaqSection(),
-          const SizedBox(height: 24),
-          _buildContactSection(context),
-          const SizedBox(height: 24),
-          _buildInfoSection(),
-          const SizedBox(height: 16),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8.0),
-            child: Text(
-              'Обычно мы отвечаем на обращения в течение 1-2 часов в рабочее время',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
           ),
         ],
       ),

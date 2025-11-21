@@ -5,13 +5,14 @@ import 'package:linux_test2/services/database.dart';
 
 class AddressProvider with ChangeNotifier {
   List<DeliveryAddress> _addresses = [];
+  DeliveryAddress? _selectedAddress; // ✅ НОВОЕ: Хранит адрес, выбранный в текущей сессии
   final DatabaseService _databaseService;
   final String uid;
 
   StreamSubscription? _userDataSubscription;
 
   AddressProvider({required this.uid})
-    : _databaseService = DatabaseService(uid: uid) {
+      : _databaseService = DatabaseService(uid: uid) {
     _loadAddresses();
   }
 
@@ -23,27 +24,44 @@ class AddressProvider with ChangeNotifier {
 
   List<DeliveryAddress> get addresses => List.unmodifiable(_addresses);
 
-  DeliveryAddress? get defaultAddress => _addresses.firstWhere(
-    (addr) => addr.isDefault,
-    orElse: () => _addresses.isNotEmpty
-        ? _addresses.first
-        : DeliveryAddress(
-            id: '',
-            title: '',
-            address: '',
-            isDefault: false,
-            createdAt: DateTime.now(),
-          ),
+  // ✅ НОВАЯ ЛОГИКА: Возвращаем либо выбранный руками, либо дефолтный
+  DeliveryAddress? get selectedAddress {
+    if (_selectedAddress != null) return _selectedAddress;
+    return defaultAddress;
+  }
+
+  DeliveryAddress? get defaultAddress => _addresses.isEmpty
+      ? null
+      : _addresses.firstWhere(
+        (addr) => addr.isDefault,
+    orElse: () => _addresses.first,
   );
 
   bool get hasAddresses => _addresses.isNotEmpty;
 
+  // ✅ НОВЫЙ МЕТОД: Установка текущего адреса
+  void setSelectedAddress(DeliveryAddress address) {
+    _selectedAddress = address;
+    notifyListeners();
+  }
+
   Future<void> _loadAddresses() async {
     try {
-      // ✅ РЕАЛЬНАЯ ЗАГРУЗКА ИЗ DATABASE SERVICE
       _userDataSubscription = _databaseService.userData.listen(
-        (userData) {
+            (userData) {
           _addresses = userData.addresses;
+
+          // Если текущий выбранный адрес был удален, сбрасываем выбор
+          if (_selectedAddress != null) {
+            final exists = _addresses.any((addr) => addr.id == _selectedAddress!.id);
+            if (!exists) {
+              _selectedAddress = null;
+            } else {
+              // Обновляем данные (вдруг название поменялось)
+              _selectedAddress = _addresses.firstWhere((addr) => addr.id == _selectedAddress!.id);
+            }
+          }
+
           notifyListeners();
         },
         onError: (error) {
@@ -59,14 +77,12 @@ class AddressProvider with ChangeNotifier {
   // Добавление нового адреса
   Future<void> addAddress(DeliveryAddress newAddress) async {
     try {
-      // Если это первый адрес, делаем его default
       final bool shouldBeDefault = _addresses.isEmpty || newAddress.isDefault;
 
       final addressToAdd = shouldBeDefault
           ? newAddress.copyWith(isDefault: true)
           : newAddress;
 
-      // Если новый адрес - default, сбрасываем у остальных
       if (addressToAdd.isDefault) {
         _addresses = _addresses
             .map((addr) => addr.copyWith(isDefault: false))
@@ -75,6 +91,12 @@ class AddressProvider with ChangeNotifier {
 
       _addresses.add(addressToAdd);
       await _saveAddresses();
+
+      // Если это первый адрес, сразу делаем его выбранным
+      if (_addresses.length == 1) {
+        _selectedAddress = addressToAdd;
+      }
+
       notifyListeners();
     } catch (e) {
       debugPrint('Error adding address: $e');
@@ -84,13 +106,12 @@ class AddressProvider with ChangeNotifier {
 
   // Обновление адреса
   Future<void> updateAddress(
-    String addressId,
-    DeliveryAddress updatedAddress,
-  ) async {
+      String addressId,
+      DeliveryAddress updatedAddress,
+      ) async {
     try {
       final index = _addresses.indexWhere((addr) => addr.id == addressId);
       if (index != -1) {
-        // Если адрес стал default, сбрасываем у остальных
         if (updatedAddress.isDefault && !_addresses[index].isDefault) {
           _addresses = _addresses
               .map((addr) => addr.copyWith(isDefault: false))
@@ -113,13 +134,12 @@ class AddressProvider with ChangeNotifier {
   Future<void> removeAddress(String addressId) async {
     try {
       final addressToRemove = _addresses.firstWhere(
-        (addr) => addr.id == addressId,
+            (addr) => addr.id == addressId,
       );
       final wasDefault = addressToRemove.isDefault;
 
       _addresses.removeWhere((addr) => addr.id == addressId);
 
-      // Если удалили default адрес и есть другие адреса, назначаем первый как default
       if (wasDefault && _addresses.isNotEmpty) {
         _addresses[0] = _addresses[0].copyWith(isDefault: true);
       }
@@ -164,7 +184,6 @@ class AddressProvider with ChangeNotifier {
   // Сохранение адресов в базу
   Future<void> _saveAddresses() async {
     try {
-      // ✅ РЕАЛЬНОЕ СОХРАНЕНИЕ В DATABASE SERVICE
       await _databaseService.updateUserAddresses(_addresses);
       debugPrint(
         '💾 Saved ${_addresses.length} addresses to database for user $uid',
@@ -182,7 +201,7 @@ class AddressProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // Загрузка тестовых данных (для разработки)
+  // Загрузка тестовых данных
   Future<void> loadMockAddresses() async {
     _addresses = [
       DeliveryAddress(
@@ -209,7 +228,7 @@ class AddressProvider with ChangeNotifier {
         createdAt: DateTime.now(),
       ),
     ];
-    await _saveAddresses(); // ✅ Сохраняем тестовые данные в БД
+    await _saveAddresses();
     notifyListeners();
   }
 }

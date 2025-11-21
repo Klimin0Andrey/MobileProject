@@ -9,33 +9,32 @@ class RestaurantCard extends StatelessWidget {
   final Restaurant restaurant;
   final bool isGuest;
 
-  const RestaurantCard({super.key, required this.restaurant, required this.isGuest});
+  const RestaurantCard({
+    super.key,
+    required this.restaurant,
+    required this.isGuest,
+  });
 
   @override
   Widget build(BuildContext context) {
-    // Для гостей не показываем кнопку избранного
-    if (isGuest) {
-      return _buildRestaurantCard(context, false, () {});
-    }
-
-    // Получаем пользователя один раз в build методе
     final user = Provider.of<AppUser?>(context);
 
-    // Если пользователь не авторизован, показываем карточку без кнопки избранного
-    if (user == null) {
+    // Логика определения: показывать кнопку лайка или нет
+    if (isGuest || user == null) {
       return _buildRestaurantCard(context, false, () {});
     }
 
-    // Для авторизованных пользователей
+    // Слушаем изменения в реальном времени
     return StreamBuilder<bool>(
       stream: DatabaseService(uid: user.uid).isRestaurantFavorite(restaurant.id),
       builder: (context, snapshot) {
         final isFavorite = snapshot.data ?? false;
 
         return _buildRestaurantCard(
-            context,
-            isFavorite,
-                () => _toggleFavorite(context, user.uid, isFavorite)
+          context,
+          isFavorite,
+          // Передаем колбэк с логикой тогла
+              () => _toggleFavorite(context, user.uid, isFavorite),
         );
       },
     );
@@ -44,7 +43,7 @@ class RestaurantCard extends StatelessWidget {
   Widget _buildRestaurantCard(
       BuildContext context,
       bool isFavorite,
-      VoidCallback onFavoriteTap
+      VoidCallback onFavoriteTap,
       ) {
     return GestureDetector(
       onTap: () {
@@ -52,34 +51,43 @@ class RestaurantCard extends StatelessWidget {
           context,
           MaterialPageRoute(
             builder: (context) => RestaurantDetailScreen(
-                restaurant: restaurant,
-                isGuest: isGuest
+              restaurant: restaurant,
+              isGuest: isGuest,
             ),
           ),
         );
       },
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        elevation: 4, // Чуть приподняли карточку для красоты
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        clipBehavior: Clip.antiAlias, // Чтобы картинка не вылезала за скругления
         child: Stack(
           children: [
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  height: 150,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    image: restaurant.imageUrl.isNotEmpty
-                        ? DecorationImage(
-                      image: NetworkImage(restaurant.imageUrl),
-                      fit: BoxFit.cover,
-                    )
-                        : null,
+                // ✅ УЛУЧШЕНИЕ 1: Hero анимация для картинки
+                Hero(
+                  tag: 'restaurant_image_${restaurant.id}', // Уникальный тег
+                  child: Container(
+                    height: 160,
+                    width: double.infinity,
                     color: Colors.grey[300],
+                    child: restaurant.imageUrl.isNotEmpty
+                        ? Image.network(
+                      restaurant.imageUrl,
+                      fit: BoxFit.cover,
+                      // Плавное появление картинки
+                      loadingBuilder: (ctx, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(child: Icon(Icons.image, color: Colors.white));
+                      },
+                      errorBuilder: (ctx, error, stackTrace) =>
+                      const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                    )
+                        : const Center(child: Icon(Icons.restaurant, size: 50, color: Colors.grey)),
                   ),
-                  child: restaurant.imageUrl.isEmpty
-                      ? const Icon(Icons.restaurant, size: 50, color: Colors.grey)
-                      : null,
                 ),
 
                 // Информация о ресторане
@@ -88,48 +96,72 @@ class RestaurantCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        restaurant.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              restaurant.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          // Рейтинг справа от названия
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.star, color: Colors.green, size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  restaurant.rating.toStringAsFixed(1),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
+
                       const SizedBox(height: 4),
                       Text(
                         restaurant.description,
-                        style: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 14,
-                        ),
+                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
+
+                      const SizedBox(height: 12),
+
+                      // Нижняя строка: Время и Кухня
                       Row(
                         children: [
-                          // Рейтинг
-                          Icon(Icons.star, color: Colors.orange, size: 16),
+                          Icon(Icons.access_time, color: Colors.grey[500], size: 16),
                           const SizedBox(width: 4),
-                          Text(restaurant.rating.toStringAsFixed(1)),
-                          const SizedBox(width: 16),
-                          // Время доставки
-                          Icon(Icons.access_time, color: Colors.grey, size: 16),
-                          const SizedBox(width: 4),
-                          Text(restaurant.deliveryTime),
+                          Text(
+                            restaurant.deliveryTime,
+                            style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                          ),
+                          const SizedBox(width: 12),
+                          Text('•', style: TextStyle(color: Colors.grey[400])),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              restaurant.cuisineType.join(', '),
+                              style: TextStyle(color: Colors.grey[700], fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                         ],
-                      ),
-                      const SizedBox(height: 8),
-                      // Типы кухни
-                      Wrap(
-                        spacing: 8,
-                        children: restaurant.cuisineType.map((cuisine) {
-                          return Chip(
-                            label: Text(cuisine),
-                            backgroundColor: Colors.orange[50],
-                            labelStyle: const TextStyle(fontSize: 12),
-                          );
-                        }).toList(),
                       ),
                     ],
                   ),
@@ -137,17 +169,17 @@ class RestaurantCard extends StatelessWidget {
               ],
             ),
 
-            // Кнопка избранного (только для авторизованных)
+            // Кнопка избранного
             if (!isGuest)
               Positioned(
-                top: 8,
-                right: 8,
+                top: 10,
+                right: 10,
                 child: GestureDetector(
                   onTap: onFavoriteTap,
                   child: Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -157,10 +189,18 @@ class RestaurantCard extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Icon(
-                      isFavorite ? Icons.favorite : Icons.favorite_border,
-                      color: isFavorite ? Colors.red : Colors.grey,
-                      size: 24,
+                    // Анимация смены иконки (необязательно, но красиво)
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      transitionBuilder: (Widget child, Animation<double> animation) {
+                        return ScaleTransition(scale: animation, child: child);
+                      },
+                      child: Icon(
+                        isFavorite ? Icons.favorite : Icons.favorite_border,
+                        key: ValueKey<bool>(isFavorite),
+                        color: isFavorite ? Colors.red : Colors.grey,
+                        size: 22,
+                      ),
                     ),
                   ),
                 ),
@@ -171,15 +211,34 @@ class RestaurantCard extends StatelessWidget {
     );
   }
 
-  void _toggleFavorite(BuildContext context, String userId, bool isCurrentlyFavorite) {
+  // ✅ УЛУЧШЕНИЕ 2: Добавляем визуальную обратную связь (SnackBar)
+  void _toggleFavorite(BuildContext context, String userId, bool isCurrentlyFavorite) async {
     final database = DatabaseService(uid: userId);
 
     if (isCurrentlyFavorite) {
-      database.removeFromFavorites(restaurant.id);
-      print('🗑️ Удален из избранного: ${restaurant.name}');
+      await database.removeFromFavorites(restaurant.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${restaurant.name} удален из избранного'),
+            duration: const Duration(seconds: 1),
+            backgroundColor: Colors.grey[800],
+          ),
+        );
+      }
     } else {
-      database.addToFavorites(restaurant.id);
-      print('❤️ Добавлен в избранное: ${restaurant.name}');
+      await database.addToFavorites(restaurant.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${restaurant.name} добавлен в избранное'),
+            duration: const Duration(seconds: 1),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
     }
   }
 }
