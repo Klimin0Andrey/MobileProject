@@ -162,14 +162,58 @@ class _SupportScreenState extends State<SupportScreen> {
     );
   }
 
-  // ✅ ИСПРАВЛЕНИЕ: Метод для открытия чата (списка обращений)
-  void _openChatScreen(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const SupportTicketsScreen(),
-      ),
-    );
+  // ✅ ОБНОВЛЕННЫЙ МЕТОД
+  // isTopButton = true -> кнопка "Мои обращения" (сверху)
+  // isTopButton = false -> кнопка "Онлайн-чат" (снизу)
+  void _openChatScreen(BuildContext context, {required bool isTopButton}) async {
+    final user = Provider.of<AppUser?>(context, listen: false);
+    if (user == null) {
+      _showAuthDialog(context);
+      return;
+    }
+
+    final supportProvider = Provider.of<SupportProvider>(context, listen: false);
+
+    try {
+      // Проверяем, есть ли тикеты
+      final tickets = await supportProvider.getUserTicketsStream(user.uid).first;
+
+      if (tickets.isEmpty) {
+        // ✅ ЛОГИКА ТЕКСТА
+        final String message = isTopButton
+            ? 'У вас нет активных диалогов. Создайте обращение ниже! 👇' // Для верхней кнопки
+            : 'У вас нет активных диалогов. Создайте обращение выше! 👆'; // Для нижней кнопки
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      } else {
+        // Если тикеты есть — открываем список
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const SupportTicketsScreen(),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Ошибка проверки тикетов: $e');
+      // В случае ошибки открываем экран списка (там покажется ошибка или пустой стейт)
+      if (mounted) {
+        Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SupportTicketsScreen())
+        );
+      }
+    }
   }
 
   void _showComingSoonDialog(BuildContext context, String feature) {
@@ -210,7 +254,7 @@ class _SupportScreenState extends State<SupportScreen> {
                 width: double.infinity,
                 margin: const EdgeInsets.all(16),
                 child: ElevatedButton.icon(
-                  onPressed: () => _openChatScreen(context),
+                  onPressed: () => _openChatScreen(context, isTopButton: true),
                   icon: const Icon(Icons.history),
                   label: const Text('Мои обращения'),
                   style: ElevatedButton.styleFrom(
@@ -495,7 +539,7 @@ class _SupportScreenState extends State<SupportScreen> {
                   ? 'Открыть историю обращений'
                   : 'Войдите, чтобы начать чат',
               onTap: user != null
-                  ? () => _openChatScreen(context) // Теперь вызываем метод корректно
+                  ? () => _openChatScreen(context, isTopButton: false)
                   : () => _showAuthDialog(context),
             ),
           ],
