@@ -3,8 +3,10 @@ import 'package:flutter/services.dart'; // Для буфера обмена
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart'; // Для звонков и почты
 import 'package:linux_test2/data/models/user.dart';
+import 'package:linux_test2/data/models/support_ticket.dart';
 import 'package:linux_test2/presentation/providers/support_provider.dart';
 import 'package:linux_test2/presentation/screens/auth/authenticate.dart';
+import 'package:linux_test2/presentation/screens/customer/support_tickets_screen.dart';
 
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
@@ -155,6 +157,8 @@ class _SupportScreenState extends State<SupportScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = Provider.of<AppUser?>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Помощь и поддержка'),
@@ -162,28 +166,60 @@ class _SupportScreenState extends State<SupportScreen> {
         foregroundColor: Colors.white,
         elevation: 0,
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildFaqSection(),
-          const SizedBox(height: 24),
-          _buildContactFormSection(context),
-          const SizedBox(height: 24),
-          _buildContactInfoSection(), // Обновленная секция контактов
-          const SizedBox(height: 16),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 8.0),
-            child: Text(
-              'Обычно мы отвечаем на обращения в течение 1-2 часов в рабочее время',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-                fontStyle: FontStyle.italic,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // ✅ ДОБАВЛЕНО: Кнопка "Мои обращения"
+            if (user != null)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(16),
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SupportTicketsScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.history),
+                  label: const Text('Мои обращения'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
               ),
+
+            ListView(
+              shrinkWrap: true, // Устанавливаем shrinkWrap: true, чтобы ListView не занимал весь доступный размер
+              physics: const NeverScrollableScrollPhysics(), // Отключаем физическое прокручивание ListView
+              padding: const EdgeInsets.all(16),
+              children: [
+                _buildFaqSection(),
+                const SizedBox(height: 24),
+                _buildContactFormSection(context),
+                const SizedBox(height: 24),
+                _buildContactInfoSection(), // Обновленная секция контактов
+                const SizedBox(height: 16),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text(
+                    'Обычно мы отвечаем на обращения в течение 1-2 часов в рабочее время',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

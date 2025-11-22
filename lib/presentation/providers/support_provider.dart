@@ -1,12 +1,15 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:linux_test2/data/models/support_ticket.dart';
 import 'package:linux_test2/services/support_service.dart';
 
 class SupportProvider with ChangeNotifier {
-  final List<SupportTicket> _tickets = [];
   final SupportService _supportService = SupportService();
-
-  List<SupportTicket> get tickets => _tickets;
+  
+  // ✅ ИЗМЕНЕНО: Используем Stream вместо List
+  Stream<List<SupportTicket>> getUserTicketsStream(String userId) {
+    return _supportService.getUserTickets(userId);
+  }
 
   Future<void> submitTicket({
     required String userId,
@@ -25,27 +28,17 @@ class SupportProvider with ChangeNotifier {
         subject: subject,
         message: message,
       );
-
-      // После успешной отправки перезагружаем тикеты
-      await loadUserTickets(userId);
-
     } catch (e) {
       throw Exception('Ошибка при отправке обращения: $e');
     }
   }
 
-  Future<void> loadUserTickets(String userId) async {
+  // ✅ ДОБАВЛЕНО: Метод для получения конкретного тикета
+  Future<SupportTicket?> getTicket(String ticketId) async {
     try {
-      // TODO: Реализовать метод в SupportService для загрузки тикетов пользователя
-      // _tickets = await _supportService.getUserTickets(userId);
-      notifyListeners();
+      return await _supportService.getTicket(ticketId);
     } catch (e) {
-      throw Exception('Ошибка при загрузке обращений: $e');
+      throw Exception('Ошибка при загрузке обращения: $e');
     }
-  }
-
-  void clearTickets() {
-    _tickets.clear();
-    notifyListeners();
   }
 }

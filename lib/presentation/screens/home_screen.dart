@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/data/models/address.dart';
-import 'package:linux_test2/services/auth.dart';
 import 'package:linux_test2/presentation/providers/restaurant_provider.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/presentation/providers/address_provider.dart';
@@ -12,6 +11,7 @@ import 'package:linux_test2/presentation/screens/customer/cart_screen.dart';
 import 'package:linux_test2/presentation/screens/auth/authenticate.dart';
 import 'package:linux_test2/presentation/screens/customer/profile_screen.dart';
 import 'package:linux_test2/presentation/screens/checkout/address_selection_screen.dart';
+import 'package:linux_test2/presentation/screens/customer/notifications_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -301,7 +301,13 @@ class _HomeScreenState extends State<HomeScreen> {
           if (!isGuest)
             IconButton(
               icon: const Icon(Icons.notifications_none),
-              onPressed: () {},
+              onPressed: () {
+                // ✅ ПЕРЕХОД НА ЭКРАН УВЕДОМЛЕНИЙ
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+                );
+              },
             ),
         ],
       ),

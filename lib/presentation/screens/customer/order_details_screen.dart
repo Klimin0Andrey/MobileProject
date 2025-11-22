@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/order.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';

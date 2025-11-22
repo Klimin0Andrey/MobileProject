@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:linux_test2/data/models/address.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:linux_test2/services/notification_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -13,7 +14,6 @@ class AuthService {
     scopes: ['email', 'profile'],
   );
 
-  // ✅ СТРИМ ОСТАВЛЯЕМ КАК ЕСТЬ
   Stream<AppUser?> get user {
     return _auth.authStateChanges().switchMap((firebaseUser) {
       if (firebaseUser == null) {
@@ -68,10 +68,6 @@ class AuthService {
     );
   }
 
-  // ---------------------------------------------------
-  // ✅ МЕТОДЫ ДЛЯ СОЦСЕТЕЙ (используем старый API версии 6.x)
-  // ---------------------------------------------------
-
   // Вход через Google
   Future<UserCredential?> signInWithGoogle() async {
     try {
@@ -93,6 +89,8 @@ class AuthService {
 
       // 5. Создаем документ юзера в БД, если его нет
       await _createFirestoreUserIfNew(result.user);
+      // ✅ СОХРАНЯЕМ ТОКЕН ПРИ ВХОДЕ
+      await NotificationService().saveTokenToDatabase();
 
       return result;
     } catch (e) {
@@ -115,6 +113,8 @@ class AuthService {
 
       // Создаем документ юзера в БД, если его нет
       await _createFirestoreUserIfNew(result.user);
+      // ✅ СОХРАНЯЕМ ТОКЕН ПРИ ВХОДЕ
+      await NotificationService().saveTokenToDatabase();
 
       return result;
     } catch (e) {
@@ -146,9 +146,6 @@ class AuthService {
     }
   }
 
-  // ---------------------------------------------------
-  // СТАРЫЕ МЕТОДЫ (ОСТАЛИСЬ БЕЗ ИЗМЕНЕНИЙ)
-  // ---------------------------------------------------
 
   Future<void> signInAnon() async {
     try {
@@ -162,6 +159,8 @@ class AuthService {
   Future<void> signInWithEmailAndPassword(String email, String password) async {
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
+      // ✅ СОХРАНЯЕМ ТОКЕН ПРИ ВХОДЕ
+      await NotificationService().saveTokenToDatabase();
     } catch (e) {
       print('Sign in error: $e');
       rethrow;
@@ -194,6 +193,8 @@ class AuthService {
           'avatarUrl': null,
           'createdAt': FieldValue.serverTimestamp(),
         });
+        // ✅ СОХРАНЯЕМ ТОКЕН ПРИ РЕГИСТРАЦИИ
+        await NotificationService().saveTokenToDatabase();
       }
     } catch (e) {
       print('Registration error: $e');

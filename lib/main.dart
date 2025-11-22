@@ -13,11 +13,13 @@ import 'package:linux_test2/presentation/providers/order_provider.dart';
 import 'package:linux_test2/presentation/providers/theme_provider.dart';
 import 'package:linux_test2/presentation/providers/address_provider.dart';
 import 'package:linux_test2/core/themes/app_themes.dart';
+import 'package:linux_test2/services/notification_service.dart';
 
 void main() async {
   // Инициализация Flutter и Firebase
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  await NotificationService().initNotifications();
   runApp(const MyApp());
 }
 

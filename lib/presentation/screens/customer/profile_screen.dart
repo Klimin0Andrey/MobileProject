@@ -15,6 +15,7 @@ import 'package:linux_test2/presentation/screens/customer/support_screen.dart';
 import 'package:linux_test2/presentation/screens/customer/favorites_screen.dart';
 import 'package:linux_test2/presentation/screens/customer/addresses_screen.dart';
 import 'package:linux_test2/presentation/screens/customer/edit_profile_screen.dart';
+import 'package:linux_test2/presentation/screens/customer/notifications_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -240,7 +241,13 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
               _buildProfileMenuItem(
                   icon: Icons.notifications,
                   title: 'Уведомления',
-                  onTap: () => _showComingSoonDialog(context, 'Настройки уведомлений')),
+                  onTap: () {
+                    // Открываем тот же экран истории, или можно сделать отдельный экран настроек
+                    Navigator.of(context).push(
+                        MaterialPageRoute(builder: (context) => const NotificationsScreen())
+                    );
+                  }
+              ),
               Consumer<ThemeProvider>(
                   builder: (context, themeProvider, child) => ListTile(
                       leading: Icon(themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode, color: Colors.orange),
