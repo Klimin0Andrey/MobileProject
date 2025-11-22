@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/data/models/support_ticket.dart';
+import 'package:linux_test2/data/models/support_message.dart';
 import 'package:linux_test2/presentation/providers/support_provider.dart';
 import 'package:linux_test2/presentation/screens/customer/support_ticket_detail_screen.dart';
+import 'package:linux_test2/presentation/screens/customer/support_chat_screen.dart';
 
 class SupportTicketsScreen extends StatelessWidget {
   const SupportTicketsScreen({super.key});
@@ -99,11 +101,10 @@ class SupportTicketsScreen extends StatelessWidget {
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: () {
-                    // Переход к деталям
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => SupportTicketDetailScreen(ticketId: ticket.id),
+                        builder: (context) => SupportChatScreen(ticketId: ticket.id),
                       ),
                     );
                   },

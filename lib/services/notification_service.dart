@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:linux_test2/data/models/support_ticket.dart';
 
 
 // ✅ ДОБАВЛЕНО: Глобальный обработчик для фоновых уведомлений
@@ -23,8 +24,11 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications = 
       FlutterLocalNotificationsPlugin();
   
-  // ✅ ДОБАВЛЕНО: Stream для отслеживания изменений статуса заказов
+  // ✅ ДОБАВЛЕНО: Stream для отслеживания статуса заказов
   StreamSubscription<QuerySnapshot>? _ordersSubscription;
+  
+  // ✅ ДОБАВЛЕНО: Stream для отслеживания тикетов поддержки
+  StreamSubscription<QuerySnapshot>? _supportTicketsSubscription;
 
   // Инициализация уведомлений
   Future<void> initNotifications() async {
@@ -73,6 +77,9 @@ class NotificationService {
 
       // 9. ✅ ДОБАВЛЕНО: Начинаем отслеживать изменения статуса заказов
       _startOrderStatusListener();
+
+      // 9. ✅ ДОБАВЛЕНО: Начинаем отслеживать ответы поддержки
+      _startSupportTicketsListener();
     } else {
       print('❌ Пользователь запретил уведомления');
     }
@@ -98,8 +105,17 @@ class NotificationService {
     await _localNotifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
-        // Обработка нажатия на локальное уведомление
-        print('🔔 Нажато на локальное уведомление: ${response.payload}');
+        if (response.payload != null) {
+          // Проверяем, это уведомление о тикете или заказе
+          if (response.payload!.startsWith('support_ticket:')) {
+            final ticketId = response.payload!.split(':')[1];
+            print('💬 Открываем тикет поддержки: $ticketId');
+            // TODO: Навигация на экран тикета (нужен BuildContext)
+          } else {
+            // Обработка уведомлений о заказах
+            print('�� Нажато на локальное уведомление: ${response.payload}');
+          }
+        }
       },
     );
 
@@ -151,15 +167,19 @@ class NotificationService {
 
   // ✅ ДОБАВЛЕНО: Обработка нажатия на уведомление
   void _handleNotificationTap(RemoteMessage message) {
-    // Здесь можно добавить навигацию на нужный экран
-    // Например, если в data есть orderId, открыть экран заказа
     final data = message.data;
-    if (data != null && data.containsKey('orderId')) {
-      final orderId = data['orderId'] as String?;
-      if (orderId != null) {
-        // TODO: Навигация на экран заказа
-        print('📦 Открываем заказ: $orderId');
+    if (data != null) {
+      // Обработка уведомлений о заказах
+      if (data.containsKey('orderId')) {
+        final orderId = data['orderId'] as String?;
+        if (orderId != null) {
+          print('�� Открываем заказ: $orderId');
+          // TODO: Навигация на экран заказа
+        }
       }
+      
+      // ✅ ДОБАВЛЕНО: Обработка уведомлений о тикетах поддержки
+      // (будет использоваться при нажатии на локальные уведомления)
     }
   }
 
@@ -259,10 +279,96 @@ class NotificationService {
     }
   }
 
+  // ✅ ДОБАВЛЕНО: Отслеживание ответов поддержки
+  void _startSupportTicketsListener() {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    // Отслеживаем тикеты текущего пользователя
+    _supportTicketsSubscription = _firestore
+        .collection('support_tickets')
+        .where('userId', isEqualTo: user.uid)
+        .snapshots()
+        .listen((snapshot) {
+      for (var change in snapshot.docChanges) {
+        if (change.type == DocumentChangeType.modified) {
+          final oldData = change.doc.metadata.hasPendingWrites
+              ? null
+              : change.doc.data();
+          final newData = change.doc.data();
+
+          // Проверяем, появился ли новый ответ от поддержки
+          if (oldData != null && 
+              newData != null &&
+              oldData.containsKey('adminReply') &&
+              newData.containsKey('adminReply')) {
+            
+            final oldReply = oldData['adminReply'] as String?;
+            final newReply = newData['adminReply'] as String?;
+            
+            // Если ответ изменился с null/пустого на непустой
+            if ((oldReply == null || oldReply.isEmpty) && 
+                newReply != null && 
+                newReply.isNotEmpty) {
+              final ticketId = change.doc.id;
+              final subject = newData['subject'] as String? ?? 'Ваше обращение';
+              
+              // Показываем уведомление о новом ответе
+              _showSupportReplyNotification(
+                ticketId: ticketId,
+                subject: subject,
+              );
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ✅ ДОБАВЛЕНО: Показ уведомления о новом ответе поддержки
+  Future<void> _showSupportReplyNotification({
+    required String ticketId,
+    required String subject,
+  }) async {
+    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+      'high_importance_channel',
+      'Уведомления о заказах',
+      channelDescription: 'Уведомления об изменении статуса заказов',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+    );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const NotificationDetails details = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _localNotifications.show(
+      ticketId.hashCode + 10000, // Добавляем смещение, чтобы не конфликтовало с заказами
+      'Новый ответ от поддержки',
+      'По вашему обращению "$subject" получен ответ',
+      details,
+      payload: 'support_ticket:$ticketId', // Передаем ID тикета для навигации
+    );
+  }
+
   // ✅ ДОБАВЛЕНО: Остановка отслеживания заказов
   void stopOrderStatusListener() {
     _ordersSubscription?.cancel();
     _ordersSubscription = null;
+  }
+
+  // ✅ ДОБАВЛЕНО: Остановка отслеживания тикетов
+  void stopSupportTicketsListener() {
+    _supportTicketsSubscription?.cancel();
+    _supportTicketsSubscription = null;
   }
 
   // Сохранение токена в БД
@@ -301,5 +407,6 @@ class NotificationService {
   // ✅ ДОБАВЛЕНО: Очистка ресурсов
   void dispose() {
     stopOrderStatusListener();
+    stopSupportTicketsListener(); // ✅ ДОБАВЛЕНО
   }
 }

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart'; // Для буфера обмена
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart'; // Для звонков и почты
 import 'package:linux_test2/data/models/user.dart';
-import 'package:linux_test2/data/models/support_ticket.dart';
 import 'package:linux_test2/presentation/providers/support_provider.dart';
 import 'package:linux_test2/presentation/screens/auth/authenticate.dart';
 import 'package:linux_test2/presentation/screens/customer/support_tickets_screen.dart';
@@ -30,6 +29,7 @@ class _SupportScreenState extends State<SupportScreen> {
     super.dispose();
   }
 
+  // --- ЛОГИКА ОТПРАВКИ ТИКЕТА ---
   Future<void> _submitSupportRequest(BuildContext context) async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -64,6 +64,12 @@ class _SupportScreenState extends State<SupportScreen> {
             backgroundColor: Colors.green,
           ),
         );
+
+        // Опционально: переходим к списку, чтобы показать созданный тикет
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const SupportTicketsScreen()),
+        );
       }
 
     } catch (e) {
@@ -84,7 +90,8 @@ class _SupportScreenState extends State<SupportScreen> {
     }
   }
 
-  // 📞 Логика звонка
+  // --- ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ (Звонки, Почта, Буфер) ---
+
   Future<void> _makePhoneCall(String phoneNumber) async {
     final Uri launchUri = Uri(
       scheme: 'tel',
@@ -97,7 +104,6 @@ class _SupportScreenState extends State<SupportScreen> {
     }
   }
 
-  // 📧 Логика email
   Future<void> _sendEmail(String email) async {
     final Uri launchUri = Uri(
       scheme: 'mailto',
@@ -111,7 +117,6 @@ class _SupportScreenState extends State<SupportScreen> {
     }
   }
 
-  // 📋 Логика копирования
   void _copyToClipboard(String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
@@ -128,6 +133,8 @@ class _SupportScreenState extends State<SupportScreen> {
       SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
+
+  // --- НАВИГАЦИЯ И ДИАЛОГИ ---
 
   void _showAuthDialog(BuildContext context) {
     showDialog(
@@ -155,6 +162,34 @@ class _SupportScreenState extends State<SupportScreen> {
     );
   }
 
+  // ✅ ИСПРАВЛЕНИЕ: Метод для открытия чата (списка обращений)
+  void _openChatScreen(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const SupportTicketsScreen(),
+      ),
+    );
+  }
+
+  void _showComingSoonDialog(BuildContext context, String feature) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Скоро будет доступно'),
+        content: Text('Функция "$feature" находится в разработке'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('ОК'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- BUILD МЕТОД ---
+
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<AppUser?>(context);
@@ -169,20 +204,13 @@ class _SupportScreenState extends State<SupportScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ✅ ДОБАВЛЕНО: Кнопка "Мои обращения"
+            // Верхняя кнопка "Мои обращения" (только для авторизованных)
             if (user != null)
               Container(
                 width: double.infinity,
                 margin: const EdgeInsets.all(16),
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SupportTicketsScreen(),
-                      ),
-                    );
-                  },
+                  onPressed: () => _openChatScreen(context),
                   icon: const Icon(Icons.history),
                   label: const Text('Мои обращения'),
                   style: ElevatedButton.styleFrom(
@@ -194,15 +222,16 @@ class _SupportScreenState extends State<SupportScreen> {
               ),
 
             ListView(
-              shrinkWrap: true, // Устанавливаем shrinkWrap: true, чтобы ListView не занимал весь доступный размер
-              physics: const NeverScrollableScrollPhysics(), // Отключаем физическое прокручивание ListView
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
               children: [
                 _buildFaqSection(),
                 const SizedBox(height: 24),
                 _buildContactFormSection(context),
                 const SizedBox(height: 24),
-                _buildContactInfoSection(), // Обновленная секция контактов
+                // ✅ ВАЖНО: Передаем user в метод построения контактов
+                _buildContactInfoSection(user),
                 const SizedBox(height: 16),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8.0),
@@ -223,6 +252,8 @@ class _SupportScreenState extends State<SupportScreen> {
       ),
     );
   }
+
+  // --- ВИДЖЕТЫ РАЗДЕЛОВ ---
 
   Widget _buildFaqSection() {
     return Card(
@@ -416,7 +447,8 @@ class _SupportScreenState extends State<SupportScreen> {
     );
   }
 
-  Widget _buildContactInfoSection() {
+  // ✅ ИСПРАВЛЕНИЕ: Принимаем user как аргумент метода
+  Widget _buildContactInfoSection(AppUser? user) {
     return Card(
       elevation: 2,
       child: Padding(
@@ -430,7 +462,7 @@ class _SupportScreenState extends State<SupportScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Телефон (Звонок + Копирование)
+            // Телефон
             _buildContactItem(
               icon: Icons.phone,
               title: 'Телефон поддержки',
@@ -439,7 +471,7 @@ class _SupportScreenState extends State<SupportScreen> {
               onLongPress: () => _copyToClipboard('+79991234567', 'Телефон'),
             ),
 
-            // Email (Почта + Копирование)
+            // Email
             _buildContactItem(
               icon: Icons.email,
               title: 'Email',
@@ -448,21 +480,23 @@ class _SupportScreenState extends State<SupportScreen> {
               onLongPress: () => _copyToClipboard('support@yumyum.ru', 'Email'),
             ),
 
-            // Время работы (Статично)
+            // Время работы
             _buildContactItem(
               icon: Icons.access_time,
               title: 'Время работы',
               subtitle: 'Круглосуточно, 24/7',
             ),
 
-            // Чат (Заглушка)
+            // ✅ ИСПРАВЛЕНИЕ: Кнопка чата
             _buildContactItem(
               icon: Icons.chat,
               title: 'Онлайн-чат',
-              subtitle: 'Доступен в мобильном приложении',
-              onTap: () {
-                _showComingSoonDialog(context, 'Онлайн-чат');
-              },
+              subtitle: user != null
+                  ? 'Открыть историю обращений'
+                  : 'Войдите, чтобы начать чат',
+              onTap: user != null
+                  ? () => _openChatScreen(context) // Теперь вызываем метод корректно
+                  : () => _showAuthDialog(context),
             ),
           ],
         ),
@@ -477,11 +511,11 @@ class _SupportScreenState extends State<SupportScreen> {
     VoidCallback? onTap,
     VoidCallback? onLongPress,
   }) {
-    return InkWell( // Добавил InkWell для обработки нажатий и Ripple эффекта
+    return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12.0), // Увеличил зону нажатия
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
         child: Row(
           children: [
             Icon(icon, color: Colors.orange),
@@ -496,26 +530,10 @@ class _SupportScreenState extends State<SupportScreen> {
                 ],
               ),
             ),
-            if (onTap != null) // Показываем иконку только если элемент кликабелен
+            if (onTap != null)
               const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
           ],
         ),
-      ),
-    );
-  }
-
-  void _showComingSoonDialog(BuildContext context, String feature) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Скоро будет доступно'),
-        content: Text('Функция "$feature" находится в разработке'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('ОК'),
-          ),
-        ],
       ),
     );
   }

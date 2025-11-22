@@ -36,6 +36,11 @@ class _SupportTicketDetailScreenState extends State<SupportTicketDetailScreen> {
           _ticket = ticket;
           _isLoading = false;
         });
+        
+        // ✅ ДОБАВЛЕНО: Отмечаем ответ как прочитанный при открытии
+        if (ticket != null && ticket.hasUnreadReply) {
+          await supportProvider.markReplyAsRead(widget.ticketId);
+        }
       }
     } catch (e) {
       if (mounted) {
