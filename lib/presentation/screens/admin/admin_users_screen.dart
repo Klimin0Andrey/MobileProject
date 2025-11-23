@@ -4,6 +4,7 @@ import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/presentation/providers/admin_users_provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:linux_test2/presentation/widgets/universal_image.dart';
+
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
 
@@ -37,11 +38,18 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ДОБАВЛЕНО: Определяем цвета текста в зависимости от темы
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Пользователи'),
         bottom: TabBar(
           controller: _tabController,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           tabs: const [
             Tab(icon: Icon(Icons.person), text: 'Клиенты'),
             Tab(icon: Icon(Icons.people), text: 'Сотрудники'),
@@ -50,24 +58,31 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
       ),
       body: Column(
         children: [
-          // Поиск
+          // ✅ УЛУЧШЕН: Поиск с адаптацией под тему
           Padding(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(12),
             child: TextField(
               controller: _searchController,
+              style: TextStyle(color: textColor),
               decoration: InputDecoration(
-                hintText: 'Поиск по имени, email или телефону...',
-                prefixIcon: const Icon(Icons.search),
+                hintText: 'Поиск по имени, email...',
+                hintStyle: TextStyle(color: isDark ? Colors.grey[400] : Colors.grey[600]),
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          _searchController.clear();
-                        },
-                      )
+                  icon: const Icon(Icons.clear, color: Colors.grey),
+                  onPressed: () {
+                    _searchController.clear();
+                    FocusScope.of(context).unfocus();
+                  },
+                )
                     : null,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                filled: true,
+                fillColor: isDark ? const Color(0xFF2D2D2D) : Colors.grey[200],
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
@@ -109,14 +124,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  isCustomers ? Icons.person_outline : Icons.people_outline,
+                  isCustomers ? Icons.person_off_outlined : Icons.people_outline,
                   size: 64,
                   color: Colors.grey,
                 ),
                 const SizedBox(height: 16),
                 Text(
                   isCustomers ? 'Нет клиентов' : 'Нет сотрудников',
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
+                  style: const TextStyle(color: Colors.grey, fontSize: 16),
                 ),
               ],
             ),
@@ -124,7 +139,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           itemCount: users.length,
           itemBuilder: (context, index) {
             return _buildUserCard(users[index], isCustomers);
@@ -135,63 +150,63 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
   }
 
   Widget _buildUserCard(AppUser user, bool isCustomers) {
-    // Проверяем, забанен ли пользователь
-    // Примечание: нужно добавить поле isBanned в Firestore
-    // Пока используем проверку через FutureBuilder
+    // ✅ ДОБАВЛЕНО: Цвета для темной темы
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance.collection('users').doc(user.uid).get(),
       builder: (context, snapshot) {
-        // ✅ ИСПРАВЛЕНО: Правильное приведение типов
         final data = snapshot.data?.data() as Map<String, dynamic>?;
         final isBanned = data?['isBanned'] as bool? ?? false;
 
         return Card(
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          color: isBanned ? Colors.red.shade50 : null,
+          elevation: 2,
+          margin: const EdgeInsets.only(bottom: 12),
+          color: isBanned
+              ? (isDark ? Colors.red.shade900.withOpacity(0.3) : Colors.red.shade50)
+              : Theme.of(context).cardColor,
           child: ListTile(
+            contentPadding: const EdgeInsets.all(12),
             leading: CircleAvatar(
-              radius: 20, // Стандартный размер
-              backgroundColor: Colors.grey.shade200, // Цвет фона под картинкой
+              radius: 24,
+              backgroundColor: Colors.orange.shade100,
               child: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
                   ? ClipOval(
                 child: UniversalImage(
                   imageUrl: user.avatarUrl!,
-                  width: 40, // 2 * radius
-                  height: 40,
+                  width: 48,
+                  height: 48,
                   fit: BoxFit.cover,
-                  errorWidget: Center(child: Text(user.initials)), // Если картинка битая — инициалы
+                  errorWidget: Center(child: Text(user.initials, style: TextStyle(color: Colors.orange.shade800))),
                 ),
               )
-                  : Text(user.initials), // Если ссылки нет — инициалы
+                  : Text(user.initials, style: TextStyle(color: Colors.orange.shade800, fontWeight: FontWeight.bold)),
             ),
             title: Row(
               children: [
                 Expanded(
                   child: Text(
-                    user.name,
+                    user.name.isNotEmpty ? user.name : 'Без имени',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: textColor,
                       decoration: isBanned ? TextDecoration.lineThrough : null,
                     ),
                   ),
                 ),
                 if (isBanned)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade100,
-                      borderRadius: BorderRadius.circular(12),
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: const Text(
-                      'Забанен',
-                      style: TextStyle(
-                        color: Colors.red,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      'BAN',
+                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                     ),
                   ),
               ],
@@ -199,28 +214,35 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('📧 ${user.email}'),
-                if (user.phone.isNotEmpty) Text('📱 ${user.phone}'),
+                const SizedBox(height: 4),
+                Text(user.email, style: TextStyle(color: subTextColor, fontSize: 13)),
+                if (user.phone.isNotEmpty)
+                  Text(user.phone, style: TextStyle(color: subTextColor, fontSize: 13)),
+                const SizedBox(height: 8),
                 Row(
                   children: [
-                    Chip(
-                      label: Text(
-                        _getRoleText(user.role),
-                        style: const TextStyle(fontSize: 10),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _getRoleColor(user.role).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: _getRoleColor(user.role).withOpacity(0.5)),
                       ),
-                      padding: EdgeInsets.zero,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      child: Text(
+                        _getRoleText(user.role),
+                        style: TextStyle(fontSize: 11, color: _getRoleColor(user.role), fontWeight: FontWeight.bold),
+                      ),
                     ),
                     if (isCustomers) ...[
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       FutureBuilder<int>(
                         future: Provider.of<AdminUsersProvider>(context, listen: false)
                             .getUserOrdersCount(user.uid),
                         builder: (context, snapshot) {
                           final ordersCount = snapshot.data ?? 0;
                           return Text(
-                            '📦 $ordersCount заказов',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                            '$ordersCount заказов',
+                            style: TextStyle(fontSize: 12, color: subTextColor),
                           );
                         },
                       ),
@@ -230,14 +252,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
               ],
             ),
             trailing: PopupMenuButton(
+              icon: Icon(Icons.more_vert, color: subTextColor),
               itemBuilder: (context) => [
                 if (!isCustomers)
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: 'role',
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.person_outline, size: 20),
-                        SizedBox(width: 8),
+                        Icon(Icons.admin_panel_settings_outlined, size: 20),
+                        SizedBox(width: 12),
                         Text('Изменить роль'),
                       ],
                     ),
@@ -247,11 +270,11 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
                   child: Row(
                     children: [
                       Icon(
-                        isBanned ? Icons.check_circle : Icons.block,
+                        isBanned ? Icons.check_circle_outline : Icons.block,
                         size: 20,
                         color: isBanned ? Colors.green : Colors.red,
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 12),
                       Text(
                         isBanned ? 'Разбанить' : 'Забанить',
                         style: TextStyle(
@@ -278,6 +301,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
     );
   }
 
+  // ✅ ДОБАВЛЕНО: Метод для получения цвета роли
+  Color _getRoleColor(String role) {
+    switch (role) {
+      case 'admin': return Colors.red;
+      case 'courier': return Colors.blue;
+      default: return Colors.green;
+    }
+  }
+
   String _getRoleText(String role) {
     switch (role) {
       case 'admin':
@@ -294,16 +326,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Забанить пользователя?'),
-        content: Text('Вы уверены, что хотите забанить "${user.name}"?'),
+        title: const Text('Блокировка'),
+        content: Text('Забанить пользователя "${user.name}"?'),
         actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Отмена')),
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Забанить'),
           ),
         ],
@@ -314,10 +343,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
       try {
         await Provider.of<AdminUsersProvider>(context, listen: false)
             .banUser(user.uid, true);
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Пользователь ${user.name} забанен')),
+            const SnackBar(content: Text('Пользователь забанен')),
           );
         }
       } catch (e) {
@@ -334,10 +362,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
     try {
       await Provider.of<AdminUsersProvider>(context, listen: false)
           .banUser(user.uid, false);
-
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Пользователь ${user.name} разбанен')),
+          const SnackBar(content: Text('Пользователь разбанен')),
         );
       }
     } catch (e) {
@@ -351,7 +378,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
 
   Future<void> _showChangeRoleDialog(AppUser user) async {
     String? selectedRole = user.role;
-
     final result = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
@@ -363,37 +389,31 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
               title: const Text('Клиент'),
               value: 'customer',
               groupValue: selectedRole,
-              onChanged: (value) {
-                selectedRole = value;
-                Navigator.pop(context, value);
+              onChanged: (v) {
+                selectedRole = v;
+                Navigator.pop(context, v);
               },
             ),
             RadioListTile<String>(
               title: const Text('Курьер'),
               value: 'courier',
               groupValue: selectedRole,
-              onChanged: (value) {
-                selectedRole = value;
-                Navigator.pop(context, value);
+              onChanged: (v) {
+                selectedRole = v;
+                Navigator.pop(context, v);
               },
             ),
             RadioListTile<String>(
               title: const Text('Админ'),
               value: 'admin',
               groupValue: selectedRole,
-              onChanged: (value) {
-                selectedRole = value;
-                Navigator.pop(context, value);
+              onChanged: (v) {
+                selectedRole = v;
+                Navigator.pop(context, v);
               },
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Отмена'),
-          ),
-        ],
       ),
     );
 
@@ -401,7 +421,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
       try {
         await Provider.of<AdminUsersProvider>(context, listen: false)
             .updateUserRole(user.uid, result);
-
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Роль изменена на ${_getRoleText(result)}')),

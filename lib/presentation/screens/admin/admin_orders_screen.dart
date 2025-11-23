@@ -30,12 +30,16 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Управление заказами'),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
+          indicatorColor: isDark ? Colors.white : Colors.white,
+          labelColor: isDark ? Colors.white : Colors.white,
+          unselectedLabelColor: isDark ? Colors.white70 : Colors.white.withOpacity(0.7),
           tabs: const [
             Tab(
               icon: Icon(Icons.new_releases),
@@ -138,7 +142,12 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
     final statusColor = _getStatusColor(order.status);
     final statusText = _getStatusText(order.status);
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return Card(
+      elevation: 2,
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: InkWell(
         onTap: () {
@@ -240,11 +249,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen>
   Color _getStatusColor(app_order.OrderStatus status) {
     switch (status) {
       case app_order.OrderStatus.pending:
-        return Colors.grey;
+        return Colors.orange;
       case app_order.OrderStatus.processing:
         return Colors.blue;
       case app_order.OrderStatus.delivering:
-        return Colors.orange;
+        return Colors.deepPurple;
       case app_order.OrderStatus.completed:
         return Colors.green;
       case app_order.OrderStatus.cancelled:

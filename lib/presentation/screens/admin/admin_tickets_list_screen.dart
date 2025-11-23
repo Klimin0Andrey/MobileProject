@@ -22,37 +22,43 @@ class _AdminTicketsListScreenState extends State<AdminTicketsListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Обращения в поддержку'),
+        title: const Text('Поддержка'),
       ),
       body: Column(
         children: [
-          // Фильтры
+          // ✅ УЛУЧШЕН: Фильтры с ChoiceChip
           Container(
-            height: 50,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: ListView.builder(
+            height: 60,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: _filters.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final filter = _filters[index];
                 final isSelected = _selectedFilter == filter;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: FilterChip(
-                    label: Text(filter),
-                    selected: isSelected,
-                    onSelected: (selected) {
+                return ChoiceChip(
+                  label: Text(filter),
+                  selected: isSelected,
+                  selectedColor: Colors.orange,
+                  backgroundColor: Theme.of(context).cardColor,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Theme.of(context).textTheme.bodyMedium?.color,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  onSelected: (selected) {
+                    if (selected) {
                       setState(() {
                         _selectedFilter = filter;
                       });
-                    },
-                  ),
+                    }
+                  },
                 );
               },
             ),
           ),
-          const Divider(height: 1),
+
           // Список тикетов
           Expanded(
             child: StreamBuilder<List<SupportTicket>>(
@@ -74,11 +80,11 @@ class _AdminTicketsListScreenState extends State<AdminTicketsListScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.inbox, size: 64, color: Colors.grey),
+                        Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade400),
                         const SizedBox(height: 16),
                         Text(
                           _getEmptyMessage(_selectedFilter),
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 16),
                         ),
                       ],
                     ),
@@ -86,7 +92,7 @@ class _AdminTicketsListScreenState extends State<AdminTicketsListScreen> {
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(12),
                   itemCount: filteredTickets.length,
                   itemBuilder: (context, index) {
                     return _buildTicketCard(filteredTickets[index]);
@@ -127,18 +133,28 @@ class _AdminTicketsListScreenState extends State<AdminTicketsListScreen> {
   }
 
   Widget _buildTicketCard(SupportTicket ticket) {
-    final dateFormat = DateFormat('dd.MM.yyyy HH:mm');
+    final dateFormat = DateFormat('dd.MM HH:mm');
     final statusColor = _getStatusColor(ticket.status);
     final statusText = _getStatusText(ticket.status);
     final hasUnread = ticket.hasUnreadReply;
-    final messageCount = ticket.messages.length;
-    final lastMessage = ticket.lastMessage;
+
+    // ✅ ДОБАВЛЕНО: Цвета для темной темы
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      elevation: hasUnread ? 4 : 1,
-      color: hasUnread ? Colors.blue.shade50 : null,
+      elevation: 2,
+      margin: const EdgeInsets.only(bottom: 12),
+      color: Theme.of(context).cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: hasUnread
+            ? const BorderSide(color: Colors.orange, width: 2)
+            : BorderSide.none,
+      ),
       child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () {
           Navigator.push(
             context,
@@ -148,46 +164,32 @@ class _AdminTicketsListScreenState extends State<AdminTicketsListScreen> {
           );
         },
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            if (hasUnread)
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Colors.blue,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            if (hasUnread) const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                ticket.subject,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
+                        Text(
+                          ticket.subject,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: textColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '📧 ${ticket.userEmail}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                          ticket.userEmail,
+                          style: TextStyle(fontSize: 12, color: subTextColor),
                         ),
                       ],
                     ),
@@ -195,9 +197,8 @@ class _AdminTicketsListScreenState extends State<AdminTicketsListScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: statusColor),
+                      color: statusColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       statusText,
@@ -210,26 +211,40 @@ class _AdminTicketsListScreenState extends State<AdminTicketsListScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              if (lastMessage != null) ...[
-                Text(
-                  '💬 ${lastMessage.text}',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 12),
+              if (ticket.lastMessage != null) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.grey[800] : Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    ticket.lastMessage!.text,
+                    style: TextStyle(fontSize: 14, color: textColor),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 12),
               ],
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '💬 $messageCount сообщений',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  Row(
+                    children: [
+                      Icon(Icons.message_outlined, size: 16, color: subTextColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${ticket.messages.length}',
+                        style: TextStyle(fontSize: 12, color: subTextColor),
+                      ),
+                    ],
                   ),
                   Text(
-                    '⏰ ${dateFormat.format(ticket.createdAtDate)}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    dateFormat.format(ticket.createdAtDate),
+                    style: TextStyle(fontSize: 12, color: subTextColor),
                   ),
                 ],
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/order.dart';
+import 'package:linux_test2/data/models/user.dart'; // Для проверки роли
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/presentation/screens/customer/cart_screen.dart';
 import 'package:linux_test2/presentation/widgets/universal_image.dart';
@@ -12,6 +13,15 @@ class OrderDetailsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Проверяем, админ ли смотрит экран
+    final user = Provider.of<AppUser?>(context);
+    final isAdmin = user?.role == 'admin';
+
+    // Цвета текста в зависимости от темы
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Детали заказа'),
@@ -23,48 +33,52 @@ class OrderDetailsScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeaderStatus(),
+            _buildHeaderStatus(context),
             const SizedBox(height: 24),
-            _buildAddressSection(),
+            _buildAddressSection(textColor, subTextColor),
             const SizedBox(height: 24),
-            _buildOrderItems(),
+            _buildOrderItems(textColor, subTextColor),
             const SizedBox(height: 24),
-            _buildTotalSection(),
-            const SizedBox(height: 32),
-            _buildRepeatButton(context),
+            _buildTotalSection(textColor, subTextColor),
+
+            // Кнопка "Повторить" только для обычных пользователей
+            if (!isAdmin) ...[
+              const SizedBox(height: 32),
+              _buildRepeatButton(context),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeaderStatus() {
+  Widget _buildHeaderStatus(BuildContext context) {
     String statusText = '';
     IconData statusIcon = Icons.info;
     Color color = Colors.grey;
 
     switch (order.status) {
       case OrderStatus.pending:
-        statusText = 'Заказ ожидает подтверждения';
+        statusText = 'Ожидает подтверждения';
         color = Colors.grey;
         break;
       case OrderStatus.processing:
-        statusText = 'Ресторан готовит ваш заказ';
+        statusText = 'Готовится';
         statusIcon = Icons.soup_kitchen;
         color = Colors.blue;
         break;
       case OrderStatus.delivering:
-        statusText = 'Курьер везет ваш заказ';
+        statusText = 'В доставке';
         statusIcon = Icons.delivery_dining;
         color = Colors.orange;
         break;
       case OrderStatus.completed:
-        statusText = 'Заказ доставлен. Приятного аппетита!';
+        statusText = 'Доставлен';
         statusIcon = Icons.check_circle;
         color = Colors.green;
         break;
       case OrderStatus.cancelled:
-        statusText = 'Заказ отменен';
+        statusText = 'Отменен';
         statusIcon = Icons.cancel;
         color = Colors.red;
         break;
@@ -74,7 +88,7 @@ class OrderDetailsScreen extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(0.1), // Легкий фон
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withOpacity(0.3)),
       ),
@@ -85,23 +99,23 @@ class OrderDetailsScreen extends StatelessWidget {
           Text(
             statusText,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
           ),
           const SizedBox(height: 4),
           Text(
-            '№ заказа: ${order.id?.substring(0, 8) ?? '...'}',
-            style: const TextStyle(color: Colors.grey),
+            '№ ${order.id?.substring(0, 8).toUpperCase() ?? '...'}',
+            style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? Colors.grey[400] : Colors.grey[600]),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildAddressSection() {
+  Widget _buildAddressSection(Color textColor, Color? subTextColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Доставка', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text('Доставка', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
         const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,12 +126,12 @@ class OrderDetailsScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(order.deliveryAddress.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(order.deliveryAddress.title, style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 4),
-                  Text(order.deliveryAddressString),
+                  Text(order.deliveryAddressString, style: TextStyle(color: textColor)),
                   if (order.phone.isNotEmpty) ...[
                     const SizedBox(height: 4),
-                    Text(order.phone, style: const TextStyle(color: Colors.grey)),
+                    Text(order.phone, style: TextStyle(color: subTextColor)),
                   ]
                 ],
               ),
@@ -128,11 +142,11 @@ class OrderDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildOrderItems() {
+  Widget _buildOrderItems(Color textColor, Color? subTextColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Состав заказа', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        Text('Состав заказа', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
         const SizedBox(height: 12),
         ListView.separated(
           physics: const NeverScrollableScrollPhysics(),
@@ -150,7 +164,6 @@ class OrderDetailsScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   color: Colors.grey[200],
                 ),
-                // Если есть ссылка — вставляем картинку и обрезаем углы
                 child: item.dish.imageUrl.isNotEmpty
                     ? ClipRRect(
                   borderRadius: BorderRadius.circular(8),
@@ -163,9 +176,9 @@ class OrderDetailsScreen extends StatelessWidget {
                 )
                     : null,
               ),
-              title: Text(item.dish.name),
-              subtitle: Text('${item.dish.price} ₽'),
-              trailing: Text('x${item.quantity}', style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(item.dish.name, style: TextStyle(color: textColor)),
+              subtitle: Text('${item.dish.price} ₽', style: TextStyle(color: subTextColor)),
+              trailing: Text('x${item.quantity}', style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
             );
           },
         ),
@@ -173,7 +186,7 @@ class OrderDetailsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTotalSection() {
+  Widget _buildTotalSection(Color textColor, Color? subTextColor) {
     return Column(
       children: [
         const Divider(thickness: 1),
@@ -181,7 +194,7 @@ class OrderDetailsScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Итого', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text('Итого', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textColor)),
             Text('${order.totalPrice.toStringAsFixed(0)} ₽', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange)),
           ],
         ),
@@ -189,8 +202,8 @@ class OrderDetailsScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Оплата', style: TextStyle(color: Colors.grey)),
-            Text(order.paymentMethod == 'card' ? 'Картой' : 'Наличными', style: const TextStyle(fontWeight: FontWeight.w500)),
+            Text('Оплата', style: TextStyle(color: subTextColor)),
+            Text(order.paymentMethod == 'card' ? 'Картой' : 'Наличными', style: TextStyle(fontWeight: FontWeight.w500, color: textColor)),
           ],
         ),
       ],
@@ -202,37 +215,24 @@ class OrderDetailsScreen extends StatelessWidget {
       width: double.infinity,
       child: ElevatedButton.icon(
         onPressed: () {
-          // Логика повтора заказа
           final cartProvider = Provider.of<CartProvider>(context, listen: false);
-
-          // 1. Очищаем текущую корзину
           cartProvider.clearCart();
-
-          // 2. Добавляем товары из истории
           for (var item in order.items) {
-            // ИСПРАВЛЕНИЕ: Так как addToCart принимает только блюдо и добавляет +1,
-            // вызываем его в цикле нужное количество раз.
             for (int i = 0; i < item.quantity; i++) {
               cartProvider.addToCart(item.dish);
             }
           }
-
-          // 3. Переходим в корзину
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const CartScreen()),
-          );
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Товары добавлены в корзину')),
-          );
+          Navigator.of(context).push(MaterialPageRoute(builder: (context) => const CartScreen()));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Товары добавлены в корзину')));
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.orange,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         icon: const Icon(Icons.refresh),
-        label: const Text('Повторить заказ'),
+        label: const Text('Повторить заказ', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
       ),
     );
   }

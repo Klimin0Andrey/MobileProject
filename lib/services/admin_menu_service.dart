@@ -292,3 +292,4 @@ class AdminMenuService {
     return cuisineTypes.toList()..sort();
   }
 }
+

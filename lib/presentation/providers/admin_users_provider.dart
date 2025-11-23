@@ -106,3 +106,4 @@ class AdminUsersProvider with ChangeNotifier {
     return await _usersService.getUserOrdersCount(userId);
   }
 }
+
