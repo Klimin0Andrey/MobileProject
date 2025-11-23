@@ -6,12 +6,12 @@ import 'package:linux_test2/services/support_service.dart';
 
 class SupportProvider with ChangeNotifier {
   final SupportService _supportService = SupportService();
-  
+
   Stream<List<SupportTicket>> getUserTicketsStream(String userId) {
     return _supportService.getUserTickets(userId);
   }
 
-  // ✅ ДОБАВЛЕНО: Получить Stream конкретного тикета
+  // Получить Stream конкретного тикета
   Stream<SupportTicket?> getTicketStream(String ticketId) {
     return _supportService.getTicketStream(ticketId);
   }
@@ -46,7 +46,7 @@ class SupportProvider with ChangeNotifier {
     }
   }
 
-  // ✅ ДОБАВЛЕНО: Отправить сообщение в тикет
+  // Отправить сообщение в тикет (от лица пользователя)
   Future<void> sendMessage({
     required String ticketId,
     required String text,
@@ -62,10 +62,10 @@ class SupportProvider with ChangeNotifier {
     }
   }
 
-  // ✅ ДОБАВЛЕНО: Отметить сообщения как прочитанные
+  // ✅ ИСПРАВЛЕНО: Передаем isAdmin: false, так как этот провайдер для Клиента
   Future<void> markMessagesAsRead(String ticketId) async {
     try {
-      await _supportService.markMessagesAsRead(ticketId);
+      await _supportService.markMessagesAsRead(ticketId, isAdmin: false);
     } catch (e) {
       throw Exception('Ошибка при обновлении статуса прочитанности: $e');
     }

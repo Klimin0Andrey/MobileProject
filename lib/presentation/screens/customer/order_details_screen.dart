@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/order.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/presentation/screens/customer/cart_screen.dart';
+import 'package:linux_test2/presentation/widgets/universal_image.dart';
 
 class OrderDetailsScreen extends StatelessWidget {
   final Order order;
@@ -148,10 +149,19 @@ class OrderDetailsScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(8),
                   color: Colors.grey[200],
-                  image: item.dish.imageUrl.isNotEmpty
-                      ? DecorationImage(image: NetworkImage(item.dish.imageUrl), fit: BoxFit.cover)
-                      : null,
                 ),
+                // Если есть ссылка — вставляем картинку и обрезаем углы
+                child: item.dish.imageUrl.isNotEmpty
+                    ? ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: UniversalImage(
+                    imageUrl: item.dish.imageUrl,
+                    fit: BoxFit.cover,
+                    width: 50,
+                    height: 50,
+                  ),
+                )
+                    : null,
               ),
               title: Text(item.dish.name),
               subtitle: Text('${item.dish.price} ₽'),

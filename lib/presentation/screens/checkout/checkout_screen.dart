@@ -10,6 +10,7 @@ import 'package:linux_test2/presentation/screens/checkout/address_selection_scre
 import 'package:linux_test2/data/models/address.dart';
 import 'package:linux_test2/presentation/providers/address_provider.dart';
 import 'package:linux_test2/presentation/screens/auth/authenticate.dart';
+import 'package:linux_test2/presentation/widgets/universal_image.dart';
 
 class CheckoutScreen extends StatefulWidget {
   const CheckoutScreen({super.key});
@@ -483,14 +484,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           height: 40,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
-                            image: item.dish.imageUrl.isNotEmpty
-                                ? DecorationImage(
-                                    image: NetworkImage(item.dish.imageUrl),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
-                            color: Colors.grey[200],
+                            color: Colors.grey[200], // Сохраняем цвет фона
                           ),
+                          // Используем ClipRRect, чтобы картинка не вылезала за borderRadius
+                          child: item.dish.imageUrl.isNotEmpty
+                              ? ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: UniversalImage(
+                              imageUrl: item.dish.imageUrl,
+                              fit: BoxFit.cover,
+                              // Размеры берем от родителя, или можно задать явно, если нужно
+                              width: 60,
+                              height: 60,
+                            ),
+                          )
+                              : null,
                         ),
                         const SizedBox(width: 12),
                         Expanded(

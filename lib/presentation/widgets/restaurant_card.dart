@@ -4,6 +4,7 @@ import 'package:linux_test2/data/models/restaurant.dart';
 import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/presentation/screens/guest/restaurant_detail.dart';
 import 'package:linux_test2/services/database.dart';
+import 'package:linux_test2/presentation/widgets/universal_image.dart';
 
 class RestaurantCard extends StatelessWidget {
   final Restaurant restaurant;
@@ -69,24 +70,26 @@ class RestaurantCard extends StatelessWidget {
               children: [
                 // ✅ УЛУЧШЕНИЕ 1: Hero анимация для картинки
                 Hero(
-                  tag: 'restaurant_image_${restaurant.id}', // Уникальный тег
+                  tag: 'restaurant_image_${restaurant.id}',
                   child: Container(
                     height: 160,
                     width: double.infinity,
                     color: Colors.grey[300],
+                    // 1. Оставляем твою проверку
                     child: restaurant.imageUrl.isNotEmpty
-                        ? Image.network(
-                      restaurant.imageUrl,
+                        ? UniversalImage(
+                      imageUrl: restaurant.imageUrl,
                       fit: BoxFit.cover,
-                      // Плавное появление картинки
-                      loadingBuilder: (ctx, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return const Center(child: Icon(Icons.image, color: Colors.white));
-                      },
-                      errorBuilder: (ctx, error, stackTrace) =>
-                      const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                      // 2. UniversalImage покажет лоадер сам (крутилку).
+                      // 3. Если ссылка битая или Base64 кривой — покажем твою иконку ошибки:
+                      errorWidget: const Center(
+                        child: Icon(Icons.broken_image, color: Colors.grey),
+                      ),
                     )
-                        : const Center(child: Icon(Icons.restaurant, size: 50, color: Colors.grey)),
+                    // 4. Если ссылки нет вообще — показываем иконку ресторана:
+                        : const Center(
+                      child: Icon(Icons.restaurant, size: 50, color: Colors.grey),
+                    ),
                   ),
                 ),
 

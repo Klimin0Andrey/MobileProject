@@ -6,6 +6,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:linux_test2/data/models/support_ticket.dart';
+import 'package:flutter/material.dart' show debugPrint;
 
 
 // ✅ ДОБАВЛЕНО: Глобальный обработчик для фоновых уведомлений
@@ -408,5 +409,53 @@ class NotificationService {
   void dispose() {
     stopOrderStatusListener();
     stopSupportTicketsListener(); // ✅ ДОБАВЛЕНО
+  }
+
+  // ✅ ДОБАВЛЕНО: Отправка уведомления о статусе заказа
+  Future<void> sendOrderStatusNotification({
+    required String userId,
+    required String title,
+    required String body,
+    required String orderId,
+  }) async {
+    try {
+      // Получаем токен пользователя из Firestore
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      if (!userDoc.exists) {
+        debugPrint('❌ Пользователь $userId не найден');
+        return;
+      }
+
+      final userData = userDoc.data();
+      final fcmToken = userData?['fcmToken'] as String?;
+
+      if (fcmToken == null || fcmToken.isEmpty) {
+        debugPrint('❌ У пользователя $userId нет FCM токена');
+        return;
+      }
+
+      // Отправляем уведомление через Firebase Cloud Messaging
+      // Примечание: Для реальной отправки нужен сервер или Cloud Functions
+      // Здесь мы только логируем, но можно использовать HTTP API
+      debugPrint('📤 Отправка уведомления пользователю $userId: $title');
+      
+      // Показываем локальное уведомление (для тестирования)
+      await _localNotifications.show(
+        orderId.hashCode,
+        title,
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'order_status_channel',
+            'Статусы заказов',
+            channelDescription: 'Уведомления об изменении статуса заказа',
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('❌ Ошибка при отправке уведомления: $e');
+    }
   }
 }

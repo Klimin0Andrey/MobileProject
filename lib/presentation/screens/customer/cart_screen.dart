@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/data/models/cart_item.dart';
 import 'package:linux_test2/presentation/screens/checkout/checkout_screen.dart';
+import 'package:linux_test2/presentation/widgets/universal_image.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
@@ -128,15 +129,20 @@ class CartItemCard extends StatelessWidget {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                image: item.dish.imageUrl.isNotEmpty
-                    ? DecorationImage(
-                  image: NetworkImage(item.dish.imageUrl),
-                  fit: BoxFit.cover,
-                )
-                    : null,
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(8),
               ),
+              child: item.dish.imageUrl.isNotEmpty
+                  ? ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: UniversalImage(
+                  imageUrl: item.dish.imageUrl,
+                  fit: BoxFit.cover,
+                  width: 60,
+                  height: 60,
+                ),
+              )
+                  : null,
             ),
             const SizedBox(width: 12),
 

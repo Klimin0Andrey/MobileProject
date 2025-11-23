@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:linux_test2/data/models/dish.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
+import 'package:linux_test2/presentation/widgets/universal_image.dart';
 
 class DishCard extends StatelessWidget {
   final Dish dish;
@@ -22,14 +23,17 @@ class DishCard extends StatelessWidget {
             width: 100,
             height: 100,
             decoration: BoxDecoration(
-              image: dish.imageUrl.isNotEmpty
-                  ? DecorationImage(
-                image: NetworkImage(dish.imageUrl),
-                fit: BoxFit.cover,
-              )
-                  : null,
               color: Colors.grey[300],
+              // borderRadius: ... (если был, добавь его сюда)
             ),
+            // Если ссылка есть — рисуем картинку, если нет — null (или иконку, если она была в child)
+            child: dish.imageUrl.isNotEmpty
+                ? UniversalImage(
+              imageUrl: dish.imageUrl,
+              fit: BoxFit.cover,
+              // Если нужно скругление, оберни UniversalImage в ClipRRect
+            )
+                : null,
           ),
           const SizedBox(width: 12),
           // Информация о блюде

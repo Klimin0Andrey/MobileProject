@@ -89,6 +89,19 @@ class AuthService {
 
       // 5. Создаем документ юзера в БД, если его нет
       await _createFirestoreUserIfNew(result.user);
+      
+      // ✅ ДОБАВЛЕНО: Проверка бана
+      final user = result.user;
+      if (user != null) {
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        final isBanned = userDoc.data()?['isBanned'] as bool? ?? false;
+        
+        if (isBanned) {
+          await _auth.signOut();
+          throw Exception('Ваш аккаунт заблокирован. Обратитесь в поддержку.');
+        }
+      }
+      
       // ✅ СОХРАНЯЕМ ТОКЕН ПРИ ВХОДЕ
       await NotificationService().saveTokenToDatabase();
 

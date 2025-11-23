@@ -12,6 +12,7 @@ import 'package:linux_test2/presentation/screens/auth/authenticate.dart';
 import 'package:linux_test2/presentation/screens/customer/profile_screen.dart';
 import 'package:linux_test2/presentation/screens/checkout/address_selection_screen.dart';
 import 'package:linux_test2/presentation/screens/customer/notifications_screen.dart';
+import 'package:linux_test2/presentation/widgets/universal_image.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,15 +32,15 @@ class _HomeScreenState extends State<HomeScreen> {
   ];
   int _currentTabIndex = 0;
 
-  ImageProvider _getAvatarImage(String? avatarUrl) {
-    if (avatarUrl == null || avatarUrl.isEmpty) {
-      return const NetworkImage(''); // Пустая ссылка для иконки по умолчанию
-    }
-    if (avatarUrl.startsWith('data:image')) {
-      return MemoryImage(base64Decode(avatarUrl.split(',').last));
-    }
-    return NetworkImage(avatarUrl);
-  }
+  // ImageProvider _getAvatarImage(String? avatarUrl) {
+  //   if (avatarUrl == null || avatarUrl.isEmpty) {
+  //     return const NetworkImage(''); // Пустая ссылка для иконки по умолчанию
+  //   }
+  //   if (avatarUrl.startsWith('data:image')) {
+  //     return MemoryImage(base64Decode(avatarUrl.split(',').last));
+  //   }
+  //   return NetworkImage(avatarUrl);
+  // }
 
   Future<void> _changeAddress() async {
     final selected = await Navigator.push<DeliveryAddress>(
@@ -234,12 +235,22 @@ class _HomeScreenState extends State<HomeScreen> {
             child: CircleAvatar(
               radius: 22, // Чуть больше
               backgroundColor: Colors.orange.shade100,
-              backgroundImage: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
-                  ? _getAvatarImage(user.avatarUrl!)
-                  : null,
-              child: (user?.avatarUrl == null || user!.avatarUrl!.isEmpty)
-                  ? const Icon(Icons.person, color: Colors.orange)
-                  : null,
+              // backgroundImage убираем, всё переносим в child
+              child: (user?.avatarUrl != null && user!.avatarUrl!.isNotEmpty)
+                  ? ClipOval(
+                child: UniversalImage(
+                  imageUrl: user.avatarUrl!,
+                  width: 44, // radius * 2
+                  height: 44,
+                  fit: BoxFit.cover,
+                  // Если картинка битая или не грузится — показываем твою иконку
+                  errorWidget: const Center(
+                    child: Icon(Icons.person, color: Colors.orange),
+                  ),
+                ),
+              )
+              // Если ссылки нет — показываем твою иконку
+                  : const Icon(Icons.person, color: Colors.orange),
             ),
           ),
 

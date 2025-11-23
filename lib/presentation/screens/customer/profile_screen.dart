@@ -16,6 +16,7 @@ import 'package:linux_test2/presentation/screens/customer/favorites_screen.dart'
 import 'package:linux_test2/presentation/screens/customer/addresses_screen.dart';
 import 'package:linux_test2/presentation/screens/customer/edit_profile_screen.dart';
 import 'package:linux_test2/presentation/screens/customer/notifications_screen.dart';
+import 'package:linux_test2/presentation/widgets/universal_image.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -142,13 +143,13 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     );
   }
 
-  ImageProvider? _getAvatarImage(String? avatarUrl) {
-    if (avatarUrl == null || avatarUrl.isEmpty) return null;
-    if (avatarUrl.startsWith('data:image')) {
-      return MemoryImage(base64Decode(avatarUrl.split(',').last));
-    }
-    return NetworkImage(avatarUrl);
-  }
+  // ImageProvider? _getAvatarImage(String? avatarUrl) {
+  //   if (avatarUrl == null || avatarUrl.isEmpty) return null;
+  //   if (avatarUrl.startsWith('data:image')) {
+  //     return MemoryImage(base64Decode(avatarUrl.split(',').last));
+  //   }
+  //   return NetworkImage(avatarUrl);
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -296,10 +297,36 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
             key: ValueKey(user.avatarUrl ?? ''),
             radius: 50,
             backgroundColor: Colors.orange.shade100,
-            backgroundImage: _getAvatarImage(user.avatarUrl),
-            child: user.avatarUrl == null
-                ? Text(user.initials, style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: Colors.orange))
-                : null,
+            // backgroundImage убираем, используем child
+            child: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
+                ? ClipOval(
+              child: UniversalImage(
+                imageUrl: user.avatarUrl!,
+                width: 100, // radius * 2
+                height: 100,
+                fit: BoxFit.cover,
+                // Если картинка битая — показываем инициалы с твоим стилем
+                errorWidget: Center(
+                  child: Text(
+                    user.initials,
+                    style: const TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+              ),
+            )
+            // Если ссылки нет — показываем инициалы с твоим стилем
+                : Text(
+              user.initials,
+              style: const TextStyle(
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
+                color: Colors.orange,
+              ),
+            ),
           ),
           Positioned(
             bottom: 0,

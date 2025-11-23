@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+// ✅ ИМПОРТИРУЕМ МОДЕЛИ, А НЕ ПЕРЕСОЗДАЕМ ИХ
 import 'package:linux_test2/data/models/support_ticket.dart';
 import 'package:linux_test2/data/models/support_message.dart';
 
@@ -15,7 +16,6 @@ class SupportService {
     required String message,
   }) async {
     try {
-      // ✅ ДОБАВЛЕНО: Создаем первое сообщение
       final firstMessage = SupportMessage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         text: message,
@@ -35,7 +35,7 @@ class SupportService {
         'createdAt': FieldValue.serverTimestamp(),
         'adminReply': null,
         'updatedAt': FieldValue.serverTimestamp(),
-        'messages': [firstMessage.toMap()], // ✅ ДОБАВЛЕНО: первое сообщение
+        'messages': [firstMessage.toMap()],
         'isReplyRead': true,
       });
     } catch (e) {
@@ -43,7 +43,7 @@ class SupportService {
     }
   }
 
-  // Стрим списка тикетов
+  // Стрим списка тикетов (для юзера)
   Stream<List<SupportTicket>> getUserTickets(String userId) {
     return _firestore
         .collection('support_tickets')
@@ -64,7 +64,7 @@ class SupportService {
     return null;
   }
 
-  // ✅ ДОБАВЛЕНО: Стрим одного тикета (для чата в реальном времени)
+  // Стрим одного тикета (для чата в реальном времени)
   Stream<SupportTicket?> getTicketStream(String ticketId) {
     return _firestore
         .collection('support_tickets')
@@ -78,7 +78,7 @@ class SupportService {
     });
   }
 
-  // ✅ ДОБАВЛЕНО: Отправка сообщения в чат
+  // Отправка сообщения в чат
   Future<void> sendMessage({
     required String ticketId,
     required String text,
@@ -86,13 +86,13 @@ class SupportService {
   }) async {
     final ticketDoc = _firestore.collection('support_tickets').doc(ticketId);
     final ticketSnapshot = await ticketDoc.get();
-    
+
     if (!ticketSnapshot.exists) {
       throw Exception('Тикет не найден');
     }
 
     final currentMessages = ticketSnapshot.data()?['messages'] as List? ?? [];
-    
+
     final newMessage = SupportMessage(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       text: text,
@@ -101,15 +101,13 @@ class SupportService {
       isRead: sender == MessageSender.user, // Сообщения пользователя сразу прочитаны
     );
 
-    // Добавляем новое сообщение в массив
     currentMessages.add(newMessage.toMap());
 
-    // ✅ ИСПРАВЛЕНО: Создаем Map отдельно
     final updateData = <String, dynamic>{
       'messages': currentMessages,
       'updatedAt': FieldValue.serverTimestamp(),
     };
-    
+
     // Если это ответ пользователя, обновляем статус
     if (sender == MessageSender.user) {
       updateData['status'] = 'open';
@@ -118,11 +116,8 @@ class SupportService {
     await ticketDoc.update(updateData);
   }
 
-  // ✅ ДОБАВЛЕНО: Пометить сообщения как прочитанные
-  Future<void> markMessagesAsRead(String ticketId) async {
-    // Firestore не умеет обновлять элементы массива по условию одной командой.
-    // Нужно прочитать документ, обновить массив в памяти и записать обратно.
-
+  // ✅ ИСПРАВЛЕНО: Теперь метод знает, КТО читает сообщения
+  Future<void> markMessagesAsRead(String ticketId, {required bool isAdmin}) async {
     final docRef = _firestore.collection('support_tickets').doc(ticketId);
 
     return _firestore.runTransaction((transaction) async {
@@ -135,10 +130,16 @@ class SupportService {
       bool hasChanges = false;
       final List<Map<String, dynamic>> updatedMessages = [];
 
+      // Если я Админ -> я читаю сообщения от 'user'
+      // Если я Юзер -> я читаю сообщения от 'admin'
+      final targetSender = isAdmin ? 'user' : 'admin';
+
       for (var msgMap in messagesData) {
         final msg = Map<String, dynamic>.from(msgMap as Map);
-        // Если сообщение от АДМИНА и оно НЕ прочитано -> читаем его
-        if (msg['sender'] == 'admin' && (msg['isRead'] == false)) {
+        final senderStr = msg['sender'].toString();
+
+        // Проверяем, содержит ли отправитель целевую роль
+        if (senderStr.contains(targetSender) && (msg['isRead'] == false)) {
           msg['isRead'] = true;
           hasChanges = true;
         }
@@ -146,10 +147,16 @@ class SupportService {
       }
 
       if (hasChanges) {
-        transaction.update(docRef, {
+        final updateData = <String, dynamic>{
           'messages': updatedMessages,
-          'isReplyRead': true, // Также обновляем старое поле совместимости
-        });
+        };
+
+        // Сбрасываем флаг быстрого уведомления для клиента
+        if (!isAdmin) {
+          updateData['isReplyRead'] = true;
+        }
+
+        transaction.update(docRef, updateData);
       }
     });
   }
@@ -159,5 +166,62 @@ class SupportService {
     await _firestore.collection('support_tickets').doc(ticketId).update({
       'isReplyRead': true,
     });
+  }
+
+  // Получение всех тикетов (для админа)
+  Stream<List<SupportTicket>> getAllTickets() {
+    return _firestore
+        .collection('support_tickets')
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) => SupportTicket.fromFirestore(doc))
+        .toList());
+  }
+
+  // Обновление статуса тикета
+  Future<void> updateTicketStatus(String ticketId, String status) async {
+    await _firestore.collection('support_tickets').doc(ticketId).update({
+      'status': status,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // При отправке сообщения админом автоматически меняем статус
+  Future<void> sendAdminMessage({
+    required String ticketId,
+    required String text,
+  }) async {
+    final ticketDoc = _firestore.collection('support_tickets').doc(ticketId);
+    final ticketSnapshot = await ticketDoc.get();
+
+    if (!ticketSnapshot.exists) {
+      throw Exception('Тикет не найден');
+    }
+
+    final currentMessages = ticketSnapshot.data()?['messages'] as List? ?? [];
+
+    final newMessage = SupportMessage(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      text: text,
+      sender: MessageSender.admin,
+      createdAt: Timestamp.now(),
+      isRead: false, // Пользователь еще не прочитал
+    );
+
+    currentMessages.add(newMessage.toMap());
+
+    final updateData = <String, dynamic>{
+      'messages': currentMessages,
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    // Если статус был 'open', меняем на 'in_progress'
+    final currentStatus = ticketSnapshot.data()?['status'] as String? ?? 'open';
+    if (currentStatus == 'open') {
+      updateData['status'] = 'in_progress';
+    }
+
+    await ticketDoc.update(updateData);
   }
 }

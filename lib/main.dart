@@ -14,6 +14,9 @@ import 'package:linux_test2/presentation/providers/theme_provider.dart';
 import 'package:linux_test2/presentation/providers/address_provider.dart';
 import 'package:linux_test2/core/themes/app_themes.dart';
 import 'package:linux_test2/services/notification_service.dart';
+import 'package:linux_test2/presentation/providers/admin_order_provider.dart';
+import 'package:linux_test2/presentation/providers/admin_menu_provider.dart';
+import 'package:linux_test2/presentation/providers/admin_users_provider.dart';
 
 void main() async {
   // Инициализация Flutter и Firebase
@@ -52,6 +55,10 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => OrderProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => SupportProvider()),
+        // ✅ ДОБАВЛЕНО: Провайдеры для админа
+        ChangeNotifierProvider(create: (_) => AdminOrderProvider()),
+        ChangeNotifierProvider(create: (_) => AdminMenuProvider()),
+        ChangeNotifierProvider(create: (_) => AdminUsersProvider()),
 
         // Провайдер адресов, который зависит от текущего пользователя (AppUser)
         ChangeNotifierProxyProvider<AppUser?, AddressProvider>(
