@@ -6,6 +6,7 @@ import 'package:linux_test2/presentation/screens/admin/admin_support_screen.dart
 import 'package:linux_test2/presentation/screens/admin/admin_menu_screen.dart';
 import 'package:linux_test2/presentation/screens/admin/admin_users_screen.dart';
 import 'package:linux_test2/presentation/screens/admin/admin_profile_screen.dart';
+import 'package:linux_test2/presentation/screens/admin/admin_analytics_screen.dart';  // ✅ ДОБАВЛЕНО
 
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key});
@@ -22,6 +23,7 @@ class _AdminHomeState extends State<AdminHome> {
     const AdminSupportScreen(),
     const AdminMenuScreen(),
     const AdminUsersScreen(),
+    const AdminAnalyticsScreen(),  // ✅ ДОБАВЛЕНО: Аналитика вместо Профиля
     const AdminProfileScreen(),
   ];
 
@@ -33,7 +35,6 @@ class _AdminHomeState extends State<AdminHome> {
       appBar: AppBar(
         title: const Text('Админ-панель'),
         actions: [
-          // ✅ ДОБАВЛЕНО: Кнопка профиля
           IconButton(
             icon: const Icon(Icons.person),
             onPressed: () {
@@ -74,7 +75,14 @@ class _AdminHomeState extends State<AdminHome> {
             icon: Icon(Icons.people),
             label: 'Пользователи',
           ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Профиль'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.analytics),  // ✅ ИЗМЕНЕНО: иконка аналитики
+            label: 'Аналитика',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person),
+            label: 'Профиль',
+          ),
         ],
       ),
     );
