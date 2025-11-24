@@ -22,7 +22,7 @@ class AuthService {
         return _firestore
             .collection('users')
             .doc(firebaseUser.uid)
-            .snapshots()
+            .snapshots(includeMetadataChanges: false) // Не слушаем метаданные
             .map(_userFromFirestore);
       }
     });

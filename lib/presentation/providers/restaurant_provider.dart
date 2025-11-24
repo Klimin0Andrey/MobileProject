@@ -9,6 +9,7 @@ class RestaurantProvider with ChangeNotifier {
   List<Restaurant> _restaurants = [];
   List<Restaurant> _filteredRestaurants = [];
   String _selectedCuisine = 'Все';
+  bool _isInitialized = false;
 
   List<Restaurant> get restaurants => _filteredRestaurants;
 
@@ -24,11 +25,26 @@ class RestaurantProvider with ChangeNotifier {
   void _loadRestaurants() {
     print('🔥 Начало загрузки ресторанов из Firestore...');
 
+    // ✅ ИЗМЕНЕНО: Используем get() с Source.cache для первого чтения из кэша
+    if (!_isInitialized) {
+      _restaurantService.getRestaurants().first.then((restaurants) {
+        _restaurants = restaurants;
+        _filteredRestaurants = restaurants;
+        _isInitialized = true;
+        notifyListeners();
+        print('✅ Загружено из кэша: ${restaurants.length} ресторанов');
+      }).catchError((error) {
+        print('❌ Ошибка загрузки из кэша: $error');
+      });
+    }
+
+    // Затем слушаем изменения в реальном времени
     _restaurantService.getRestaurants().listen((restaurants) {
-      print('✅ УСПЕХ: Загружено ${restaurants.length} ресторанов');
-      for (var restaurant in restaurants) {
-        print('   - ${restaurant.name}');
+      if (_isInitialized && _restaurants.length == restaurants.length) {
+        // Если данные не изменились, не обновляем
+        return;
       }
+      print('✅ УСПЕХ: Загружено ${restaurants.length} ресторанов');
       _restaurants = restaurants;
       _filteredRestaurants = restaurants;
       notifyListeners();

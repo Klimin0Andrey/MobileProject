@@ -92,19 +92,28 @@ class _ProfileScreenState extends State<ProfileScreen> with WidgetsBindingObserv
     }
   }
 
-  // Централизованный метод для самой загрузки (используется и при выборе, и при восстановлении)
+  // Централизованный метод для самой загрузки
   Future<void> _uploadImage(XFile image, AppUser user) async {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
       final imageService = ImageService();
-      await imageService.uploadAvatarAsBase64(imageFile: image, uid: user.uid);
+      final newImageUrl = await imageService.uploadAvatar(imageFile: image, uid: user.uid);
+
+      // ✅ ДОБАВИТЬ: Небольшая задержка для синхронизации Firestore
+      await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Фото профиля успешно обновлено!'), backgroundColor: Colors.green),
+          const SnackBar(
+            content: Text('Фото профиля успешно обновлено!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
         );
+        // ✅ ДОБАВИТЬ: Принудительно обновляем экран
+        setState(() {});
       }
     } catch (e) {
       if (mounted) {

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart'; // ✅ ДОБАВИТЬ
 
 class UniversalImage extends StatelessWidget {
   final String? imageUrl;
@@ -26,7 +27,6 @@ class UniversalImage extends StatelessWidget {
     // 1. Если это Base64 строка (начинается с data:image)
     if (imageUrl!.startsWith('data:image')) {
       try {
-        // Убираем заголовок "data:image/jpeg;base64,"
         final base64String = imageUrl!.split(',').last;
         final bytes = base64Decode(base64String);
         return Image.memory(
@@ -41,29 +41,28 @@ class UniversalImage extends StatelessWidget {
       }
     }
 
-    // 2. Если это обычная ссылка (http/https)
+    // 2. Если это обычная ссылка (http/https) - используем кэширование
     if (imageUrl!.startsWith('http')) {
-      return Image.network(
-        imageUrl!,
+      return CachedNetworkImage(
+        imageUrl: imageUrl!,
         width: width,
         height: height,
         fit: fit,
-        errorBuilder: (context, error, stackTrace) => _buildError(),
-        loadingBuilder: (context, child, loadingProgress) {
-          if (loadingProgress == null) return child;
-          return SizedBox(
-            width: width,
-            height: height,
-            child: Center(
-              child: CircularProgressIndicator(
-                value: loadingProgress.expectedTotalBytes != null
-                    ? loadingProgress.cumulativeBytesLoaded /
-                    loadingProgress.expectedTotalBytes!
-                    : null,
-              ),
+        placeholder: (context, url) => SizedBox(
+          width: width,
+          height: height,
+          child: Center(
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
             ),
-          );
-        },
+          ),
+        ),
+        errorWidget: (context, url, error) => _buildError(),
+        // ✅ Настройки кэширования
+        maxWidthDiskCache: 1000, // Максимальная ширина в кэше
+        maxHeightDiskCache: 1000, // Максимальная высота в кэше
+        memCacheWidth: width?.toInt(), // Кэш в памяти с нужным размером
+        memCacheHeight: height?.toInt(),
       );
     }
 

@@ -1,14 +1,18 @@
 import 'dart:io';
+import 'dart:convert'; // ✅ ДОБАВИТЬ
+import 'dart:typed_data'; // ✅ ДОБАВИТЬ
+import 'package:http/http.dart' as http;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:linux_test2/data/models/restaurant.dart';
 import 'package:linux_test2/data/models/dish.dart';
+import 'package:linux_test2/config/cloudinary_config.dart';
+// import 'package:firebase_storage/firebase_storage.dart';
 
 class AdminMenuService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  //final FirebaseStorage _storage = FirebaseStorage.instance;
   final ImagePicker _picker = ImagePicker();
 
   // ========== РЕСТОРАНЫ ==========
@@ -80,11 +84,11 @@ class AdminMenuService {
     }
   }
 
-  // Загрузить изображение ресторана
+  /// Загружает изображение ресторана в Cloudinary
   Future<String?> uploadRestaurantImage(XFile imageFile, String restaurantId) async {
     try {
-      // Сжимаем изображение
-      final compressedBytes = await FlutterImageCompress.compressWithFile(
+      // 1. Сжимаем изображение
+      final Uint8List? compressedBytes = await FlutterImageCompress.compressWithFile(
         imageFile.path,
         minWidth: 800,
         minHeight: 600,
@@ -96,26 +100,57 @@ class AdminMenuService {
         throw Exception('Не удалось сжать изображение');
       }
 
-      // Загружаем в Firebase Storage
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final storageRef = _storage
-          .ref()
-          .child('restaurants/$restaurantId/$timestamp.jpg');
-
-      final uploadTask = storageRef.putData(
-        compressedBytes,
-        SettableMetadata(contentType: 'image/jpeg'),
+      // 2. Загружаем в Cloudinary
+      final imageUrl = await _uploadToCloudinary(
+        imageBytes: compressedBytes,
+        uploadPreset: CloudinaryConfig.restaurantUploadPreset,
+        folder: 'restaurants',
+        publicId: 'restaurant_$restaurantId',
       );
 
-      final snapshot = await uploadTask.whenComplete(() => {});
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      return downloadUrl;
+      return imageUrl;
     } catch (e) {
-      print('Ошибка при загрузке изображения ресторана: $e');
+      print('❌ Ошибка при загрузке изображения ресторана: $e');
       return null;
     }
   }
+
+  // // Загрузить изображение ресторана
+  // Future<String?> uploadRestaurantImage(XFile imageFile, String restaurantId) async {
+  //   try {
+  //     // Сжимаем изображение
+  //     final compressedBytes = await FlutterImageCompress.compressWithFile(
+  //       imageFile.path,
+  //       minWidth: 800,
+  //       minHeight: 600,
+  //       quality: 85,
+  //       format: CompressFormat.jpeg,
+  //     );
+  //
+  //     if (compressedBytes == null) {
+  //       throw Exception('Не удалось сжать изображение');
+  //     }
+  //
+  //     // Загружаем в Firebase Storage
+  //     final timestamp = DateTime.now().millisecondsSinceEpoch;
+  //     final storageRef = _storage
+  //         .ref()
+  //         .child('restaurants/$restaurantId/$timestamp.jpg');
+  //
+  //     final uploadTask = storageRef.putData(
+  //       compressedBytes,
+  //       SettableMetadata(contentType: 'image/jpeg'),
+  //     );
+  //
+  //     final snapshot = await uploadTask.whenComplete(() => {});
+  //     final downloadUrl = await snapshot.ref.getDownloadURL();
+  //
+  //     return downloadUrl;
+  //   } catch (e) {
+  //     print('Ошибка при загрузке изображения ресторана: $e');
+  //     return null;
+  //   }
+  // }
 
   // ========== БЛЮДА ==========
 
@@ -191,11 +226,11 @@ class AdminMenuService {
     await _firestore.collection('dishes').doc(dishId).delete();
   }
 
-  // Загрузить изображение блюда
+  /// Загружает изображение блюда в Cloudinary
   Future<String?> uploadDishImage(XFile imageFile, String dishId) async {
     try {
-      // Сжимаем изображение
-      final compressedBytes = await FlutterImageCompress.compressWithFile(
+      // 1. Сжимаем изображение
+      final Uint8List? compressedBytes = await FlutterImageCompress.compressWithFile(
         imageFile.path,
         minWidth: 600,
         minHeight: 600,
@@ -207,26 +242,57 @@ class AdminMenuService {
         throw Exception('Не удалось сжать изображение');
       }
 
-      // Загружаем в Firebase Storage
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final storageRef = _storage
-          .ref()
-          .child('dishes/$dishId/$timestamp.jpg');
-
-      final uploadTask = storageRef.putData(
-        compressedBytes,
-        SettableMetadata(contentType: 'image/jpeg'),
+      // 2. Загружаем в Cloudinary
+      final imageUrl = await _uploadToCloudinary(
+        imageBytes: compressedBytes,
+        uploadPreset: CloudinaryConfig.foodUploadPreset,
+        folder: 'food',
+        publicId: 'dish_$dishId',
       );
 
-      final snapshot = await uploadTask.whenComplete(() => {});
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      return downloadUrl;
+      return imageUrl;
     } catch (e) {
-      print('Ошибка при загрузке изображения блюда: $e');
+      print('❌ Ошибка при загрузке изображения блюда: $e');
       return null;
     }
   }
+
+  // // Загрузить изображение блюда
+  // Future<String?> uploadDishImage(XFile imageFile, String dishId) async {
+  //   try {
+  //     // Сжимаем изображение
+  //     final compressedBytes = await FlutterImageCompress.compressWithFile(
+  //       imageFile.path,
+  //       minWidth: 600,
+  //       minHeight: 600,
+  //       quality: 85,
+  //       format: CompressFormat.jpeg,
+  //     );
+  //
+  //     if (compressedBytes == null) {
+  //       throw Exception('Не удалось сжать изображение');
+  //     }
+  //
+  //     // Загружаем в Firebase Storage
+  //     final timestamp = DateTime.now().millisecondsSinceEpoch;
+  //     final storageRef = _storage
+  //         .ref()
+  //         .child('dishes/$dishId/$timestamp.jpg');
+  //
+  //     final uploadTask = storageRef.putData(
+  //       compressedBytes,
+  //       SettableMetadata(contentType: 'image/jpeg'),
+  //     );
+  //
+  //     final snapshot = await uploadTask.whenComplete(() => {});
+  //     final downloadUrl = await snapshot.ref.getDownloadURL();
+  //
+  //     return downloadUrl;
+  //   } catch (e) {
+  //     print('Ошибка при загрузке изображения блюда: $e');
+  //     return null;
+  //   }
+  // }
 
   // ========== ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ==========
 
@@ -256,6 +322,49 @@ class AdminMenuService {
       restaurantId: data['restaurantId'] ?? '',
       isAvailable: data['isAvailable'] ?? true,
     );
+  }
+
+  /// Загружает изображение в Cloudinary через Upload Preset
+  Future<String> _uploadToCloudinary({
+    required Uint8List imageBytes,
+    required String uploadPreset,
+    required String folder,
+    required String publicId,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse(CloudinaryConfig.uploadUrl),
+      );
+
+      request.fields.addAll({
+        'upload_preset': uploadPreset,
+        'folder': folder,
+        'public_id': publicId,
+        //'overwrite': 'true',
+      });
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          imageBytes,
+          filename: 'image.jpg',
+        ),
+      );
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode == 200) {
+        final jsonResponse = json.decode(responseBody);
+        return jsonResponse['secure_url'] as String;
+      } else {
+        throw Exception('Ошибка загрузки: ${response.statusCode} - $responseBody');
+      }
+    } catch (e) {
+      print('❌ Ошибка при загрузке в Cloudinary: $e');
+      rethrow;
+    }
   }
 
   // Получить список категорий блюд
@@ -292,4 +401,6 @@ class AdminMenuService {
     return cuisineTypes.toList()..sort();
   }
 }
+
+
 

@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:linux_test2/presentation/providers/support_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/user.dart';
@@ -22,6 +23,14 @@ void main() async {
   // Инициализация Flutter и Firebase
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  // ✅ ДОБАВЛЕНО: Включаем кэширование Firestore
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true, // Включаем локальное кэширование
+    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED, // Неограниченный кэш
+  );
+
+
   await NotificationService().initNotifications();
   runApp(const MyApp());
 }
