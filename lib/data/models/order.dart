@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:linux_test2/data/models/cart_item.dart';
 import 'package:linux_test2/data/models/dish.dart';
 import 'package:linux_test2/data/models/address.dart';
+import 'package:latlong2/latlong.dart';
 
 enum OrderStatus { pending, processing, delivering, completed, cancelled }
 
@@ -11,14 +12,14 @@ class Order {
   final List<CartItem> items;
   final double totalPrice;
   final OrderStatus status;
-  final DeliveryAddress
-  deliveryAddress; // ✅ ИЗМЕНЕНО: DeliveryAddress вместо String
+  final DeliveryAddress deliveryAddress; // ✅ ИЗМЕНЕНО: DeliveryAddress вместо String
   final String deliveryAddressString; // ✅ ДОБАВЛЕНО: для отображения
   final Timestamp createdAt;
   final String? courierId;
   final String phone;
   final String paymentMethod;
   final String? comment;
+  final Map<String, dynamic>? courierLocation;
 
   Order({
     this.id,
@@ -32,6 +33,7 @@ class Order {
     required this.phone,
     required this.paymentMethod,
     this.comment,
+    this.courierLocation,
   }) : deliveryAddressString = deliveryAddress.fullAddress;
 
   Map<String, dynamic> toMap() {
@@ -110,7 +112,21 @@ class Order {
       phone: map['phone'] ?? '',
       paymentMethod: map['paymentMethod'] ?? 'cash',
       comment: map['comment'],
+      courierLocation: map['courierLocation'] != null
+          ? Map<String, dynamic>.from(map['courierLocation'])
+          : null,
     );
+  }
+
+  // ✅ ДОБАВЛЕНО: Вспомогательные методы для работы с позицией курьера
+  LatLng? get courierPosition {
+    if (courierLocation == null) return null;
+    final lat = courierLocation!['latitude'] as num?;
+    final lng = courierLocation!['longitude'] as num?;
+    if (lat != null && lng != null) {
+      return LatLng(lat.toDouble(), lng.toDouble());
+    }
+    return null;
   }
 
   // ✅ ДОПОЛНИТЕЛЬНЫЙ МЕТОД: для получения строки адреса

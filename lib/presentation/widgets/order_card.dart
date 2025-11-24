@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:linux_test2/data/models/order.dart';
 import 'package:linux_test2/presentation/screens/customer/order_details_screen.dart'; // Создадим ниже
+import 'package:linux_test2/presentation/screens/customer/order_tracking_screen.dart'; // Создадим ниже
 
 class OrderCard extends StatelessWidget {
   final Order order;
@@ -92,6 +93,29 @@ class OrderCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(color: Colors.grey[600], fontSize: 13),
               ),
+
+              // ✅ ИСПРАВЛЕНО: Если заказ в доставке, показываем кнопку "Отслеживать"
+              // Кнопка вынесена за пределы InkWell, чтобы избежать конфликта
+              if (order.status == OrderStatus.delivering) ...[
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => OrderTrackingScreen(order: order),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.map),
+                  label: const Text('Отслеживать доставку'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    minimumSize: const Size(double.infinity, 48), // ✅ ДОБАВЛЕНО: минимальный размер
+                  ),
+                ),
+              ],
             ],
           ),
         ),
