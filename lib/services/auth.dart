@@ -169,9 +169,35 @@ class AuthService {
     }
   }
 
+  // Future<void> signInWithEmailAndPassword(String email, String password) async {
+  //   try {
+  //     await _auth.signInWithEmailAndPassword(email: email, password: password);
+  //     // ✅ СОХРАНЯЕМ ТОКЕН ПРИ ВХОДЕ
+  //     await NotificationService().saveTokenToDatabase();
+  //   } catch (e) {
+  //     print('Sign in error: $e');
+  //     rethrow;
+  //   }
+  // }
   Future<void> signInWithEmailAndPassword(String email, String password) async {
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      final userCredential = await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password
+      );
+
+      // ✅ ДОБАВЛЕНО: Проверка бана после входа
+      final user = userCredential.user;
+      if (user != null) {
+        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        final isBanned = userDoc.data()?['isBanned'] as bool? ?? false;
+
+        if (isBanned) {
+          await _auth.signOut();
+          throw Exception('Ваш аккаунт заблокирован. Обратитесь в поддержку.');
+        }
+      }
+
       // ✅ СОХРАНЯЕМ ТОКЕН ПРИ ВХОДЕ
       await NotificationService().saveTokenToDatabase();
     } catch (e) {

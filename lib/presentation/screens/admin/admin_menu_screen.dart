@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/restaurant.dart';
@@ -242,85 +243,132 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
   }
 
   Future<void> _showCreateRestaurantDialog(BuildContext context) async {
-    // Диалог создания ресторана
-    // (Упрощенная версия, можно расширить)
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     final deliveryTimeController = TextEditingController();
     final cuisineController = TextEditingController();
+    XFile? selectedImage;
     String? imageUrl;
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Создать ресторан'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Название',
-                  border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Создать ресторан'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ✅ ДОБАВЛЕНО: Выбор изображения
+                GestureDetector(
+                  onTap: () async {
+                    final image = await _picker.pickImage(
+                      source: ImageSource.gallery,
+                      imageQuality: 85,
+                    );
+                    if (image != null) {
+                      setDialogState(() {
+                        selectedImage = image;
+                      });
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: selectedImage != null
+                        ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(selectedImage!.path),
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                        : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey),
+                        const SizedBox(height: 8),
+                        Text('Нажмите для выбора фото', style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Описание',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Название',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: deliveryTimeController,
-                decoration: const InputDecoration(
-                  labelText: 'Время доставки (например: 30-40 мин)',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Описание',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: cuisineController,
-                decoration: const InputDecoration(
-                  labelText: 'Тип кухни (через запятую)',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: deliveryTimeController,
+                  decoration: const InputDecoration(
+                    labelText: 'Время доставки (например: 30-40 мин)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: cuisineController,
+                  decoration: const InputDecoration(
+                    labelText: 'Тип кухни (через запятую)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (nameController.text.isNotEmpty &&
+                    descriptionController.text.isNotEmpty &&
+                    deliveryTimeController.text.isNotEmpty &&
+                    cuisineController.text.isNotEmpty) {
+                  Navigator.pop(context, true);
+                }
+              },
+              child: const Text('Создать'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty &&
-                  descriptionController.text.isNotEmpty &&
-                  deliveryTimeController.text.isNotEmpty &&
-                  cuisineController.text.isNotEmpty) {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Создать'),
-          ),
-        ],
       ),
     );
 
     if (result == true) {
-      final cuisineTypes = cuisineController.text
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
-
       try {
+        // ✅ ДОБАВЛЕНО: Загрузка фото в Cloudinary
+        if (selectedImage != null) {
+          final tempRestaurantId = DateTime.now().millisecondsSinceEpoch.toString();
+          imageUrl = await Provider.of<AdminMenuProvider>(context, listen: false)
+              .uploadRestaurantImage(selectedImage!.path, tempRestaurantId);
+        }
+
+        final cuisineTypes = cuisineController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+
         await Provider.of<AdminMenuProvider>(context, listen: false)
             .createRestaurant(
           name: nameController.text,
@@ -596,68 +644,111 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
     final descriptionController = TextEditingController();
     final priceController = TextEditingController();
     final categoryController = TextEditingController();
+    XFile? selectedImage;
+    String? imageUrl;
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Добавить блюдо'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Название',
-                  border: OutlineInputBorder(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Добавить блюдо'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ✅ ДОБАВЛЕНО: Выбор изображения
+                GestureDetector(
+                  onTap: () async {
+                    final image = await _picker.pickImage(
+                      source: ImageSource.gallery,
+                      imageQuality: 85,
+                    );
+                    if (image != null) {
+                      setDialogState(() {
+                        selectedImage = image;
+                      });
+                    }
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 150,
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: selectedImage != null
+                        ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.file(
+                        File(selectedImage!.path),
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                        : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey),
+                        const SizedBox(height: 8),
+                        Text('Нажмите для выбора фото', style: TextStyle(color: Colors.grey)),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Описание',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Название',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                maxLines: 3,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: priceController,
-                decoration: const InputDecoration(
-                  labelText: 'Цена',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(
+                    labelText: 'Описание',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: categoryController,
-                decoration: const InputDecoration(
-                  labelText: 'Категория',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: priceController,
+                  decoration: const InputDecoration(
+                    labelText: 'Цена',
+                    border: OutlineInputBorder(),
+                  ),
+                  keyboardType: TextInputType.number,
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                TextField(
+                  controller: categoryController,
+                  decoration: const InputDecoration(
+                    labelText: 'Категория',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (nameController.text.isNotEmpty &&
+                    descriptionController.text.isNotEmpty &&
+                    priceController.text.isNotEmpty &&
+                    categoryController.text.isNotEmpty) {
+                  Navigator.pop(context, true);
+                }
+              },
+              child: const Text('Добавить'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty &&
-                  descriptionController.text.isNotEmpty &&
-                  priceController.text.isNotEmpty &&
-                  categoryController.text.isNotEmpty) {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Добавить'),
-          ),
-        ],
       ),
     );
 
@@ -668,12 +759,20 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
           throw Exception('Некорректная цена');
         }
 
+        // ✅ ДОБАВЛЕНО: Загрузка фото в Cloudinary
+        if (selectedImage != null) {
+          final tempDishId = DateTime.now().millisecondsSinceEpoch.toString();
+          imageUrl = await Provider.of<AdminMenuProvider>(context, listen: false)
+              .uploadDishImage(selectedImage!.path, tempDishId);
+        }
+
         await Provider.of<AdminMenuProvider>(context, listen: false).createDish(
           restaurantId: widget.restaurant.id,
           name: nameController.text,
           description: descriptionController.text,
           price: price,
           category: categoryController.text,
+          imageUrl: imageUrl, // ✅ ДОБАВЛЕНО
         );
 
         if (mounted) {

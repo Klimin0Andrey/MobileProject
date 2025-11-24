@@ -45,6 +45,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Пользователи'),
+        // ✅ УБРАНО: Кнопка создания сотрудника
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -254,17 +255,17 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
             trailing: PopupMenuButton(
               icon: Icon(Icons.more_vert, color: subTextColor),
               itemBuilder: (context) => [
-                if (!isCustomers)
-                  const PopupMenuItem(
-                    value: 'role',
-                    child: Row(
-                      children: [
-                        Icon(Icons.admin_panel_settings_outlined, size: 20),
-                        SizedBox(width: 12),
-                        Text('Изменить роль'),
-                      ],
-                    ),
+                // ✅ ИЗМЕНЕНО: Изменение роли доступно для всех пользователей
+                const PopupMenuItem(
+                  value: 'role',
+                  child: Row(
+                    children: [
+                      Icon(Icons.admin_panel_settings_outlined, size: 20),
+                      SizedBox(width: 12),
+                      Text('Изменить роль'),
+                    ],
                   ),
+                ),
                 PopupMenuItem(
                   value: isBanned ? 'unban' : 'ban',
                   child: Row(
@@ -377,40 +378,65 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
   }
 
   Future<void> _showChangeRoleDialog(AppUser user) async {
-    String? selectedRole = user.role;
+    String selectedRole = user.role;
+
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Изменить роль'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<String>(
-              title: const Text('Клиент'),
-              value: 'customer',
-              groupValue: selectedRole,
-              onChanged: (v) {
-                selectedRole = v;
-                Navigator.pop(context, v);
-              },
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: const Text('Изменить роль'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<String>(
+                title: const Text('Клиент'),
+                subtitle: const Text('Обычный пользователь'),
+                value: 'customer',
+                groupValue: selectedRole,
+                onChanged: (v) {
+                  if (v != null) {
+                    setState(() {
+                      selectedRole = v;
+                    });
+                  }
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('Курьер'),
+                subtitle: const Text('Доставка заказов'),
+                value: 'courier',
+                groupValue: selectedRole,
+                onChanged: (v) {
+                  if (v != null) {
+                    setState(() {
+                      selectedRole = v;
+                    });
+                  }
+                },
+              ),
+              RadioListTile<String>(
+                title: const Text('Администратор'),
+                subtitle: const Text('Полный доступ'),
+                value: 'admin',
+                groupValue: selectedRole,
+                onChanged: (v) {
+                  if (v != null) {
+                    setState(() {
+                      selectedRole = v;
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Отмена'),
             ),
-            RadioListTile<String>(
-              title: const Text('Курьер'),
-              value: 'courier',
-              groupValue: selectedRole,
-              onChanged: (v) {
-                selectedRole = v;
-                Navigator.pop(context, v);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Админ'),
-              value: 'admin',
-              groupValue: selectedRole,
-              onChanged: (v) {
-                selectedRole = v;
-                Navigator.pop(context, v);
-              },
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, selectedRole),
+              child: const Text('Сохранить'),
             ),
           ],
         ),
@@ -423,13 +449,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
             .updateUserRole(user.uid, result);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Роль изменена на ${_getRoleText(result)}')),
+            SnackBar(
+              content: Text('Роль изменена на ${_getRoleText(result)}'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка: $e')),
+            SnackBar(
+              content: Text('Ошибка: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }

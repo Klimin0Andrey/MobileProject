@@ -6,7 +6,10 @@ import 'package:linux_test2/presentation/providers/theme_provider.dart';
 import 'package:linux_test2/presentation/screens/admin/admin_home.dart';
 import 'package:linux_test2/presentation/screens/courier/courier_home.dart';
 import 'package:linux_test2/presentation/screens/home_screen.dart';
+import 'package:linux_test2/presentation/screens/auth/authenticate.dart';
+import 'package:linux_test2/services/auth.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RoleBasedWrapper extends StatelessWidget {
   const RoleBasedWrapper({super.key});
@@ -20,8 +23,10 @@ class RoleBasedWrapper extends StatelessWidget {
       if (user == null) {
         themeProvider.setGuestMode();
       } else {
-        // ✅ ИЗМЕНЕНИЕ: Передаем UID пользователя для загрузки его темы
         themeProvider.loadUserTheme(user.uid);
+
+        // ✅ ДОБАВЛЕНО: Проверка бана при загрузке
+        _checkBanStatus(context, user.uid);
       }
     });
 
@@ -37,6 +42,35 @@ class RoleBasedWrapper extends StatelessWidget {
       case 'customer':
       default:
         return const HomeScreen();
+    }
+  }
+
+  // ✅ ДОБАВЛЕНО: Проверка статуса бана
+  Future<void> _checkBanStatus(BuildContext context, String uid) async {
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
+
+      final isBanned = userDoc.data()?['isBanned'] as bool? ?? false;
+
+      if (isBanned) {
+        final authService = AuthService();
+        await authService.signOut();
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ваш аккаунт заблокирован. Обратитесь в поддержку.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Ошибка проверки бана: $e');
     }
   }
 }
