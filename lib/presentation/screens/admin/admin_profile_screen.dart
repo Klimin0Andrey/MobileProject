@@ -12,7 +12,7 @@ import 'package:linux_test2/presentation/screens/customer/notifications_screen.d
 
 import 'package:linux_test2/presentation/screens/admin/admin_analytics_screen.dart';
 import 'package:linux_test2/presentation/screens/admin/admin_users_screen.dart';
-import 'package:linux_test2/presentation/screens/admin/admin_broadcast_screen.dart';  // ✅ ДОБАВЛЕНО
+import 'package:linux_test2/presentation/screens/admin/admin_broadcast_screen.dart';
 
 class AdminProfileScreen extends StatefulWidget {
   const AdminProfileScreen({super.key});
@@ -27,7 +27,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
   final ImagePicker _picker = ImagePicker();
 
   // ---------------------------------------------------------------------------
-  // 🟢 СТАРАЯ (ПРОВЕРЕННАЯ) ЛОГИКА
+  // 🟢 ЛОГИКА ЗАГРУЗКИ ФОТО
   // ---------------------------------------------------------------------------
 
   @override
@@ -89,7 +89,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
       final imageService = ImageService();
       await imageService.uploadAvatar(imageFile: image, uid: user.uid);
 
-      // Задержка для синхронизации, как в старой версии
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
@@ -100,7 +99,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
             duration: Duration(seconds: 2),
           ),
         );
-        setState(() {}); // Принудительное обновление
+        setState(() {});
       }
     } catch (e) {
       if (mounted) {
@@ -140,7 +139,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // 🎨 НОВЫЙ ДИЗАЙН (UI)
+  // 🎨 UI ЭКРАНА
   // ---------------------------------------------------------------------------
 
   @override
@@ -157,7 +156,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
       appBar: AppBar(
         title: const Text('Профиль администратора'),
       ),
-      // Используем Stack, чтобы сохранить функционал блокировки экрана при загрузке (как в старом)
       body: Stack(
         children: [
           SingleChildScrollView(
@@ -165,7 +163,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Секция Аватара (Новый стиль)
+                // 1. Секция Аватара
                 Center(
                   child: Column(
                     children: [
@@ -250,7 +248,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
                 ),
                 const SizedBox(height: 32),
 
-                // 2. Секция "Администрирование" (Новый функционал в новом дизайне)
+                // 2. Секция "Администрирование"
                 Text(
                   'Администрирование',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -293,9 +291,28 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
                     );
                   },
                 ),
+                const SizedBox(height: 12),
+
+                // ✅ ДОБАВЛЕНО: Кнопка Массовая рассылка (для отправки)
+                _buildAdminMenuItem(
+                  context: context,
+                  icon: Icons.broadcast_on_personal,
+                  title: 'Массовая рассылка',
+                  subtitle: 'Отправка уведомлений пользователям',
+                  color: Colors.orange,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminBroadcastScreen(),
+                      ),
+                    );
+                  },
+                ),
+
                 const SizedBox(height: 32),
 
-                // 3. Секция "Настройки профиля" (Новый дизайн)
+                // 3. Секция "Настройки профиля"
                 Text(
                   'Настройки профиля',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -314,17 +331,17 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
                         builder: (context) => const EditProfileScreen()),
                   ),
                 ),
+                // ✅ ИЗМЕНЕНО: Просто "Уведомления" (для просмотра)
                 _buildListTile(
                   context,
                   icon: Icons.notifications,
-                  title: 'Уведомления и рассылка',  // ✅ ИЗМЕНЕНО: переименовано
+                  title: 'Уведомления',
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (context) => const NotificationsScreen()),
                   ),
                 ),
-                // ✅ УДАЛЕНО: Пункт "Поддержка" убран
 
                 // Переключатель темы
                 SwitchListTile(
@@ -342,7 +359,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
 
                 const SizedBox(height: 24),
 
-                // 4. Кнопка Выход (Новый дизайн + Старая логика внутри)
+                // 4. Кнопка Выход
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -364,10 +381,10 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
             ),
           ),
 
-          // Оверлей загрузки (из старого дизайна, но адаптирован)
+          // Оверлей загрузки
           if (_isLoading)
             Container(
-              color: Colors.black.withValues(alpha: 0.5),  // ✅ ИСПРАВЛЕНО: withOpacity → withValues
+              color: Colors.black.withValues(alpha: 0.5),
               child: const Center(
                   child: CircularProgressIndicator(color: Colors.orange)),
             ),
@@ -393,7 +410,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
         leading: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),  // ✅ ИСПРАВЛЕНО: withOpacity → withValues
+            color: color.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(icon, color: color, size: 24),
@@ -420,7 +437,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
     );
   }
 
-  // Логика выхода (совмещена: дизайн диалога из нового, но процесс выхода надежный)
   Future<void> _handleLogout(BuildContext context) async {
     final authService = Provider.of<AuthService>(context, listen: false);
 
@@ -445,8 +461,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
 
     if (confirm == true && mounted) {
       await authService.signOut();
-      // Дополнительная навигация не нужна, authService.signOut() обычно триггерит authStateChanges
-      // и wrapper перебрасывает на экран логина автоматически.
     }
   }
 }

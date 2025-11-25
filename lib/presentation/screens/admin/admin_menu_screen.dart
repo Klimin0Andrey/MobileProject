@@ -813,6 +813,7 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
     BuildContext context,
     Restaurant restaurant,
   ) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       await Provider.of<AdminMenuProvider>(
         context,
@@ -820,15 +821,15 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
       ).updateRestaurant(restaurantId: restaurant.id, isActive: false);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Ресторан деактивирован')));
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Ресторан деактивирован')),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Ошибка: $e')),
+        );
       }
     }
   }
@@ -837,6 +838,7 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
     BuildContext context,
     Restaurant restaurant,
   ) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       await Provider.of<AdminMenuProvider>(
         context,
@@ -844,15 +846,15 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
       ).updateRestaurant(restaurantId: restaurant.id, isActive: true);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Ресторан активирован')));
+        scaffoldMessenger.showSnackBar(
+          const SnackBar(content: Text('Ресторан активирован')),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('Ошибка: $e')),
+        );
       }
     }
   }
@@ -1315,6 +1317,8 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
     String? imageUrl = dish.imageUrl;
     bool imageChanged = false;
 
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -1518,7 +1522,7 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
         );
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          scaffoldMessenger.showSnackBar(
             const SnackBar(
               content: Text('Блюдо успешно обновлено'),
               backgroundColor: Colors.green,
@@ -1527,7 +1531,7 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          scaffoldMessenger.showSnackBar(
             SnackBar(
               content: Text('Ошибка при обновлении блюда: $e'),
               backgroundColor: Colors.red,

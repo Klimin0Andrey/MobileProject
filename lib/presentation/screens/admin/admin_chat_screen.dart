@@ -17,12 +17,10 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
   final SupportService _supportService = SupportService();
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  SupportTicket? _ticket;
 
   @override
   void initState() {
     super.initState();
-    // ✅ ВАЖНО: Помечаем сообщения пользователя как прочитанные при открытии чата админом
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _markAsRead();
     });
@@ -36,7 +34,6 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
   }
 
   void _markAsRead() {
-    // Передаем isAdmin: true, чтобы сервис понял, что читает админ
     _supportService.markMessagesAsRead(widget.ticketId, isAdmin: true);
   }
 
@@ -52,77 +49,84 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_ticket?.subject ?? 'Чат поддержки'),
-            if (_ticket != null)
-              Text(
-                _ticket!.userEmail,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
-              ),
-          ],
-        ),
-        actions: [
-          if (_ticket != null)
-            PopupMenuButton<String>(
-              tooltip: 'Изменить статус',
-              onSelected: (value) => _updateStatus(value),
-              itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: SupportTicket.statusOpen,
-                  child: Text('Открыто'),
-                ),
-                const PopupMenuItem(
-                  value: SupportTicket.statusInProgress,
-                  child: Text('В работе'),
-                ),
-                const PopupMenuItem(
-                  value: SupportTicket.statusResolved,
-                  child: Text('Закрыто'),
+    return StreamBuilder<SupportTicket?>(
+      stream: _supportService.getTicketStream(widget.ticketId),
+      builder: (context, snapshot) {
+        final ticket = snapshot.data;
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Загрузка...')),
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Ошибка')),
+            body: Center(child: Text('Ошибка: ${snapshot.error}')),
+          );
+        }
+
+        if (ticket == null) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Чат')),
+            body: const Center(child: Text('Тикет не найден или удален')),
+          );
+        }
+
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_scrollController.hasClients) {
+            _scrollToBottom();
+          }
+        });
+
+        return Scaffold(
+          appBar: AppBar(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(ticket.subject),
+                Text(
+                  ticket.userEmail,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
                 ),
               ],
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Icon(Icons.more_vert),
-              ),
             ),
-        ],
-      ),
-      body: StreamBuilder<SupportTicket?>(
-        stream: _supportService.getTicketStream(widget.ticketId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Ошибка: ${snapshot.error}'));
-          }
-
-          _ticket = snapshot.data;
-          if (_ticket == null) {
-            return const Center(child: Text('Тикет не найден или удален'));
-          }
-
-          // Автопрокрутка вниз при новых сообщениях
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (_scrollController.hasClients) {
-              _scrollToBottom();
-            }
-          });
-
-          return Column(
+            actions: [
+              PopupMenuButton<String>(
+                tooltip: 'Изменить статус',
+                onSelected: (value) => _updateStatus(value),
+                itemBuilder: (context) => [
+                  const PopupMenuItem(
+                    value: SupportTicket.statusOpen,
+                    child: Text('Открыто'),
+                  ),
+                  const PopupMenuItem(
+                    value: SupportTicket.statusInProgress,
+                    child: Text('В работе'),
+                  ),
+                  const PopupMenuItem(
+                    value: SupportTicket.statusResolved,
+                    child: Text('Закрыто'),
+                  ),
+                ],
+                child: const Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: Icon(Icons.more_vert),
+                ),
+              ),
+            ],
+          ),
+          body: Column(
             children: [
-              // Инфо-панель с категорией и датой
+              // Инфо-панель
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 color: Colors.grey.shade100,
                 child: Text(
-                  'Категория: ${_ticket!.category} • Создано: ${DateFormat('dd.MM HH:mm').format(_ticket!.createdAtDate)}',
+                  'Категория: ${ticket.category} • Создано: ${DateFormat('dd.MM HH:mm').format(ticket.createdAtDate)} • Статус: ${_getStatusText(ticket.status)}',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
                 ),
               ),
@@ -132,64 +136,108 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
                 child: ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
-                  itemCount: _ticket!.messages.length,
+                  itemCount: ticket.messages.length,
                   itemBuilder: (context, index) {
-                    final message = _ticket!.messages[index];
+                    final message = ticket.messages[index];
                     return _buildMessageBubble(message);
                   },
                 ),
               ),
 
-              // Поле ввода
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 5,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
+              // Поле ввода с проверкой статуса
+              _buildInputArea(ticket),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInputArea(SupportTicket ticket) {
+    // ✅ Проверяем статус тикета
+    if (ticket.status == SupportTicket.statusResolved) {
+      // Тикет закрыт - показываем информационное сообщение
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade200,
+          border: Border(
+            top: BorderSide(color: Colors.grey.shade300, width: 1),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.lock_outline, color: Colors.grey.shade600, size: 32),
+            const SizedBox(height: 8),
+            Text(
+              'Тикет закрыт',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Чтобы написать сообщение, измените статус на "В работе" или "Открыто"',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Тикет открыт - показываем обычное поле ввода
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 5,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _messageController,
+              decoration: InputDecoration(
+                hintText: 'Ответ поддержки...',
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: BorderSide.none,
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _messageController,
-                        decoration: InputDecoration(
-                          hintText: 'Ответ поддержки...',
-                          filled: true,
-                          fillColor: Colors.grey.shade100,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(24),
-                            borderSide: BorderSide.none,
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 10,
-                          ),
-                        ),
-                        maxLines: 3,
-                        minLines: 1,
-                        textCapitalization: TextCapitalization.sentences,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    CircleAvatar(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      child: IconButton(
-                        onPressed: _sendMessage,
-                        icon: const Icon(Icons.send, color: Colors.white, size: 20),
-                      ),
-                    ),
-                  ],
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
                 ),
               ),
-            ],
-          );
-        },
+              maxLines: 3,
+              minLines: 1,
+              textCapitalization: TextCapitalization.sentences,
+            ),
+          ),
+          const SizedBox(width: 8),
+          CircleAvatar(
+            backgroundColor: Theme.of(context).primaryColor,
+            child: IconButton(
+              onPressed: _sendMessage,
+              icon: const Icon(Icons.send, color: Colors.white, size: 20),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -240,7 +288,6 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
                 if (isAdmin) ...[
                   const SizedBox(width: 4),
                   Icon(
-                    // Галочки: одна если отправлено, две если прочитано клиентом
                     message.isRead ? Icons.done_all : Icons.check,
                     size: 12,
                     color: Colors.white70,
@@ -259,16 +306,26 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
     if (text.isEmpty) return;
 
     try {
-      _messageController.clear();
+      // ✅ Дополнительная проверка: получаем текущий статус тикета
+      final ticketSnapshot = await _supportService.getTicketStream(widget.ticketId).first;
+      if (ticketSnapshot?.status == SupportTicket.statusResolved) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Нельзя отправить сообщение в закрытый тикет'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
 
+      _messageController.clear();
       await _supportService.sendAdminMessage(
         ticketId: widget.ticketId,
         text: text,
       );
-
-      // Помечаем входящие сообщения как прочитанные
       _markAsRead();
-
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -283,10 +340,7 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
       await _supportService.updateTicketStatus(widget.ticketId, newStatus);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Статус обновлен'),
-            duration: Duration(seconds: 1),
-          ),
+          const SnackBar(content: Text('Статус обновлен'), duration: Duration(seconds: 1)),
         );
       }
     } catch (e) {
@@ -297,8 +351,17 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
       }
     }
   }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case SupportTicket.statusOpen:
+        return 'Новое';
+      case SupportTicket.statusInProgress:
+        return 'В работе';
+      case SupportTicket.statusResolved:
+        return 'Закрыто';
+      default:
+        return status;
+    }
+  }
 }
-
-
-
-

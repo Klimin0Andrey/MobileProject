@@ -5,14 +5,11 @@ import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/data/models/support_ticket.dart';
 import 'package:linux_test2/data/models/support_message.dart';
 import 'package:linux_test2/presentation/providers/support_provider.dart';
+import 'package:linux_test2/presentation/screens/customer/support_tickets_screen.dart';
 
 class SupportChatScreen extends StatefulWidget {
   final String ticketId;
-
-  const SupportChatScreen({
-    super.key,
-    required this.ticketId,
-  });
+  const SupportChatScreen({super.key, required this.ticketId});
 
   @override
   State<SupportChatScreen> createState() => _SupportChatScreenState();
@@ -43,39 +40,38 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
-    final text = _messageController.text.trim();
-    _messageController.clear();
-
-    setState(() {
-      _isSending = true;
-    });
-
     try {
+      // ✅ Проверяем статус тикета перед отправкой
       final supportProvider = Provider.of<SupportProvider>(context, listen: false);
-      await supportProvider.sendMessage(
-        ticketId: widget.ticketId,
-        text: text,
-      );
+      final ticketSnapshot = await supportProvider.getTicketStream(widget.ticketId).first;
 
-      // Прокручиваем вниз после отправки
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _scrollToBottom();
-      });
+      if (ticketSnapshot?.status == SupportTicket.statusResolved) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Нельзя отправить сообщение в закрытое обращение'),
+              backgroundColor: Colors.orange,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+        return;
+      }
+
+      final text = _messageController.text.trim();
+      _messageController.clear();
+      setState(() => _isSending = true);
+
+      await supportProvider.sendMessage(ticketId: widget.ticketId, text: text);
+      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Ошибка отправки: $e'),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSending = false;
-        });
-      }
+      if (mounted) setState(() => _isSending = false);
     }
   }
 
@@ -99,15 +95,6 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
     }
   }
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'open': return 'Открыт';
-      case 'in_progress': return 'В работе';
-      case 'resolved': return 'Решен';
-      default: return status;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<AppUser?>(context);
@@ -125,20 +112,12 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Ошибка: ${snapshot.error}'));
-          }
-
-          final ticket = snapshot.data;
-          if (ticket == null) {
+          if (!snapshot.hasData || snapshot.data == null) {
             return const Center(child: Text('Обращение не найдено'));
           }
 
-          // Отмечаем сообщения как прочитанные
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            supportProvider.markMessagesAsRead(widget.ticketId);
-          });
+          final ticket = snapshot.data!;
+          WidgetsBinding.instance.addPostFrameCallback((_) => supportProvider.markMessagesAsRead(widget.ticketId));
 
           // Объединяем первое сообщение и остальные
           final allMessages = <SupportMessage>[];
@@ -157,7 +136,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
 
           return Column(
             children: [
-              // Информация о тикете (с фиксом для темной темы)
+              // Информация о тикете
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -241,7 +220,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                         ),
                       ],
                     ),
-                    // Начальное сообщение (Ваш вопрос)
+                    // Начальное сообщение (первый вопрос)
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -278,7 +257,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                                   ticket.message,
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey[800], // В светлой теме будет серым, можно адаптировать
+                                    color: Colors.grey[800],
                                   ),
                                 ),
                               ],
@@ -294,21 +273,41 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
               // Разделитель
               Divider(height: 1, color: Colors.grey[300]),
 
-              // Список сообщений
+              // Список сообщений (диалог)
               Expanded(
-                child: ListView.builder(
+                child: allMessages.isEmpty
+                    ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.chat_bubble_outline,
+                        size: 64,
+                        color: Colors.grey[300],
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Начните диалог с поддержкой',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 16,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+                    : ListView.builder(
                   controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   itemCount: allMessages.length,
                   itemBuilder: (context, index) {
                     final message = allMessages[index];
+                    final isUser = message.sender == MessageSender.user;
 
-                    // Пропускаем визуальное отображение "initial", так как оно уже показано в блоке выше
-                    if (message.id == 'initial') {
+                    // Пропускаем первое сообщение, так как оно уже показано выше
+                    if (index == 0 && message.id == 'initial') {
                       return const SizedBox.shrink();
                     }
-
-                    final isUser = message.sender == MessageSender.user;
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
@@ -319,11 +318,10 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           if (!isUser) ...[
-                            // Аватар админа
-                            CircleAvatar(
+                            const CircleAvatar(
                               radius: 16,
                               backgroundColor: Colors.orange,
-                              child: const Icon(
+                              child: Icon(
                                 Icons.support_agent,
                                 size: 16,
                                 color: Colors.white,
@@ -332,7 +330,6 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                             const SizedBox(width: 8),
                           ],
 
-                          // Пузырь сообщения
                           Flexible(
                             child: Container(
                               padding: const EdgeInsets.symmetric(
@@ -372,7 +369,6 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
 
                           if (isUser) ...[
                             const SizedBox(width: 8),
-                            // Аватар пользователя
                             CircleAvatar(
                               radius: 16,
                               backgroundColor: Colors.blue,
@@ -394,98 +390,169 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                 ),
               ),
 
-              // ✅ ПОЛЕ ВВОДА (С фиксом для темной темы, который ты прислал)
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  // Адаптивный цвет для темной темы
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      spreadRadius: 1,
-                      blurRadius: 5,
-                      offset: const Offset(0, -2),
+              // ✅ Поле ввода с проверкой статуса
+              if (ticket.status == SupportTicket.statusResolved)
+              // Тикет закрыт - показываем информационное сообщение
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[800]
+                        : Colors.grey[200],
+                    border: Border(
+                      top: BorderSide(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.grey[700]!
+                            : Colors.grey[300]!,
+                        width: 1,
+                      ),
                     ),
-                  ],
-                ),
-                child: SafeArea(
-                  child: Row(
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _messageController,
-                          style: TextStyle(
-                            // Цвет текста для темной темы
-                            color: Theme.of(context).textTheme.bodyLarge?.color,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Введите сообщение...',
-                            hintStyle: TextStyle(
-                              // Цвет подсказки для темной темы
-                              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
-                            ),
-                            filled: true,
-                            // Фон поля ввода адаптируется к теме
-                            fillColor: Theme.of(context).brightness == Brightness.dark
-                                ? Colors.grey[800]
-                                : Colors.white,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide(
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.grey[700]!
-                                    : Colors.grey[300]!,
-                              ),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: BorderSide(
-                                color: Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.grey[700]!
-                                    : Colors.grey[300]!,
-                              ),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(24),
-                              borderSide: const BorderSide(
-                                color: Colors.orange,
-                                width: 2,
-                              ),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                          ),
-                          maxLines: null,
-                          textCapitalization: TextCapitalization.sentences,
-                          onSubmitted: (_) => _sendMessage(),
+                      Icon(
+                        Icons.lock_outline,
+                        color: Colors.grey[600],
+                        size: 32,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Обращение закрыто',
+                        style: TextStyle(
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        onPressed: _isSending ? null : _sendMessage,
-                        icon: _isSending
-                            ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                            : const Icon(Icons.send, color: Colors.orange),
-                        style: IconButton.styleFrom(
-                          backgroundColor: Colors.orange.withOpacity(0.1),
-                          padding: const EdgeInsets.all(12),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Это обращение было закрыто. Если у вас есть новый вопрос, создайте новое обращение.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const SupportTicketsScreen(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Создать новое обращение'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
                         ),
                       ),
                     ],
                   ),
+                )
+              else
+              // Тикет открыт - показываем обычное поле ввода
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        spreadRadius: 1,
+                        blurRadius: 5,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _messageController,
+                            style: TextStyle(
+                              color: Theme.of(context).textTheme.bodyLarge?.color,
+                            ),
+                            decoration: InputDecoration(
+                              hintText: 'Введите сообщение...',
+                              hintStyle: TextStyle(
+                                color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.5),
+                              ),
+                              filled: true,
+                              fillColor: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.grey[800]
+                                  : Colors.white,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.grey[700]!
+                                      : Colors.grey[300]!,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: BorderSide(
+                                  color: Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.grey[700]!
+                                      : Colors.grey[300]!,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(24),
+                                borderSide: const BorderSide(
+                                  color: Colors.orange,
+                                  width: 2,
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                            ),
+                            maxLines: null,
+                            textCapitalization: TextCapitalization.sentences,
+                            onSubmitted: (_) => _sendMessage(),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          onPressed: _isSending ? null : _sendMessage,
+                          icon: _isSending
+                              ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                              : const Icon(Icons.send, color: Colors.orange),
+                          style: IconButton.styleFrom(
+                            backgroundColor: Colors.orange.withOpacity(0.1),
+                            padding: const EdgeInsets.all(12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
             ],
           );
         },
       ),
     );
+  }
+
+  String _getStatusText(String status) {
+    switch (status) {
+      case 'open': return 'Открыт';
+      case 'in_progress': return 'В работе';
+      case 'resolved': return 'Решен';
+      default: return status;
+    }
   }
 }
