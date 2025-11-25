@@ -35,12 +35,13 @@ class AdminMenuService {
     required String deliveryTime,
     required List<String> cuisineType,
     String? imageUrl,
+    double rating = 0.0,
   }) async {
     await _firestore.collection('restaurants').add({
       'name': name,
       'description': description,
       'imageUrl': imageUrl ?? '',
-      'rating': 0.0,
+      'rating': rating,
       'deliveryTime': deliveryTime,
       'cuisineType': cuisineType,
       'isActive': true,
@@ -57,6 +58,7 @@ class AdminMenuService {
     List<String>? cuisineType,
     String? imageUrl,
     bool? isActive,
+    double? rating,
   }) async {
     final updateData = <String, dynamic>{};
     
@@ -66,6 +68,7 @@ class AdminMenuService {
     if (cuisineType != null) updateData['cuisineType'] = cuisineType;
     if (imageUrl != null) updateData['imageUrl'] = imageUrl;
     if (isActive != null) updateData['isActive'] = isActive;
+    if (rating != null) updateData['rating'] = rating;
     
     updateData['updatedAt'] = FieldValue.serverTimestamp();
 
@@ -401,6 +404,8 @@ class AdminMenuService {
     return cuisineTypes.toList()..sort();
   }
 }
+
+
 
 
 

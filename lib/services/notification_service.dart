@@ -397,8 +397,10 @@ class NotificationService {
     }
   }
 
-  void subscribeToTopic(String topic) {
-    _fcm.subscribeToTopic(topic);
+  // ✅ ДОБАВЛЕНО: Подписка на тему для массовых рассылок
+  Future<void> subscribeToTopic(String topic) async {
+    await _fcm.subscribeToTopic(topic);
+    print('✅ Подписан на тему: $topic');
   }
 
   void unsubscribeFromTopic(String topic) {

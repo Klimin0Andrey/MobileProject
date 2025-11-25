@@ -115,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // Баннер для гостей
               if (isGuest) _buildGuestBanner(context),
 
-              // Фильтры
+              // Фильтры по кухне
               SizedBox(
                 height: 50,
                 child: ListView.builder(
@@ -151,6 +151,95 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
+              // ✅ ДОБАВЛЕНО: Фильтр по рейтингу
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Рейтинг от:',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          // Фильтры-чипы для рейтинга
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(
+                                children: [
+                                  _buildRatingChip(context, restaurantProvider, 0.0, 'Все'),
+                                  const SizedBox(width: 8),
+                                  _buildRatingChip(context, restaurantProvider, 4.0, '4.0+'),
+                                  const SizedBox(width: 8),
+                                  _buildRatingChip(context, restaurantProvider, 4.5, '4.5+'),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // ✅ ДОБАВЛЕНО: Сортировка
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.sort, color: Colors.orange, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Сортировка:',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildSortChip(
+                              context,
+                              restaurantProvider,
+                              SortType.none,
+                              'По умолчанию',
+                            ),
+                            const SizedBox(width: 8),
+                            _buildSortChip(
+                              context,
+                              restaurantProvider,
+                              SortType.ratingDesc,
+                              '⭐ Рейтинг',
+                            ),
+                            const SizedBox(width: 8),
+                            _buildSortChip(
+                              context,
+                              restaurantProvider,
+                              SortType.deliveryTime,
+                              '⏱ Время',
+                            ),
+                            const SizedBox(width: 8),
+                            _buildSortChip(
+                              context,
+                              restaurantProvider,
+                              SortType.nameAsc,
+                              'А-Я',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
               const SizedBox(height: 8),
 
               // Количество
@@ -162,6 +251,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       'Найдено ресторанов: ${restaurantProvider.restaurants.length}',
                       style: const TextStyle(color: Colors.grey, fontSize: 14),
                     ),
+                    const Spacer(),
+                    // ✅ ДОБАВЛЕНО: Кнопка сброса фильтров
+                    if (restaurantProvider.selectedCuisine != 'Все' ||
+                        restaurantProvider.minRating > 0.0 ||
+                        restaurantProvider.sortType != SortType.none)
+                      TextButton.icon(
+                        onPressed: () {
+                          restaurantProvider.resetFilters();
+                          _searchController.clear();
+                        },
+                        icon: const Icon(Icons.clear_all, size: 16),
+                        label: const Text('Сбросить', style: TextStyle(fontSize: 12)),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -425,5 +530,76 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  // ✅ ДОБАВЛЕНО: Вспомогательный метод для чипа рейтинга
+  Widget _buildRatingChip(
+    BuildContext context,
+    RestaurantProvider provider,
+    double rating,
+    String label,
+  ) {
+    final isSelected = provider.minRating == rating;
+    return FilterChip(
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (rating > 0) ...[
+            const Icon(Icons.star, size: 16, color: Colors.orange),
+            const SizedBox(width: 4),
+          ],
+          Text(label),
+        ],
+      ),
+      selected: isSelected,
+      onSelected: (selected) {
+        provider.filterByRating(rating);
+      },
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey[800]
+          : Colors.grey[100],
+      selectedColor: Colors.orange.withOpacity(0.2),
+      checkmarkColor: Colors.orange,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.orange : null,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 12,
+      ),
+      side: BorderSide.none,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+    );
+  }
+
+  // ✅ ДОБАВЛЕНО: Вспомогательный метод для чипа сортировки
+  Widget _buildSortChip(
+    BuildContext context,
+    RestaurantProvider provider,
+    SortType sortType,
+    String label,
+  ) {
+    final isSelected = provider.sortType == sortType;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (selected) {
+        provider.sortRestaurants(sortType);
+      },
+      backgroundColor: Theme.of(context).brightness == Brightness.dark
+          ? Colors.grey[800]
+          : Colors.grey[100],
+      selectedColor: Colors.orange.withOpacity(0.2),
+      checkmarkColor: Colors.orange,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.orange : null,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 12,
+      ),
+      side: BorderSide.none,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+    );
   }
 }

@@ -43,6 +43,14 @@ class UniversalImage extends StatelessWidget {
 
     // 2. Если это обычная ссылка (http/https) - используем кэширование
     if (imageUrl!.startsWith('http')) {
+      // ✅ ИСПРАВЛЕНО: Проверяем на infinity перед преобразованием в int
+      final int? memCacheWidth = (width != null && width != double.infinity && !width!.isNaN)
+          ? width!.toInt()
+          : null;
+      final int? memCacheHeight = (height != null && height != double.infinity && !height!.isNaN)
+          ? height!.toInt()
+          : null;
+
       return CachedNetworkImage(
         imageUrl: imageUrl!,
         width: width,
@@ -61,8 +69,8 @@ class UniversalImage extends StatelessWidget {
         // ✅ Настройки кэширования
         maxWidthDiskCache: 1000, // Максимальная ширина в кэше
         maxHeightDiskCache: 1000, // Максимальная высота в кэше
-        memCacheWidth: width?.toInt(), // Кэш в памяти с нужным размером
-        memCacheHeight: height?.toInt(),
+        memCacheWidth: memCacheWidth, // ✅ ИСПРАВЛЕНО: Используем проверенное значение
+        memCacheHeight: memCacheHeight, // ✅ ИСПРАВЛЕНО: Используем проверенное значение
       );
     }
 

@@ -9,7 +9,10 @@ import 'package:linux_test2/presentation/providers/theme_provider.dart';
 import 'package:linux_test2/presentation/widgets/universal_image.dart';
 import 'package:linux_test2/presentation/screens/customer/edit_profile_screen.dart';
 import 'package:linux_test2/presentation/screens/customer/notifications_screen.dart';
-import 'package:linux_test2/presentation/screens/customer/support_screen.dart';
+
+import 'package:linux_test2/presentation/screens/admin/admin_analytics_screen.dart';
+import 'package:linux_test2/presentation/screens/admin/admin_users_screen.dart';
+import 'package:linux_test2/presentation/screens/admin/admin_broadcast_screen.dart';  // ✅ ДОБАВЛЕНО
 
 class AdminProfileScreen extends StatefulWidget {
   const AdminProfileScreen({super.key});
@@ -22,6 +25,10 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
     with WidgetsBindingObserver {
   bool _isLoading = false;
   final ImagePicker _picker = ImagePicker();
+
+  // ---------------------------------------------------------------------------
+  // 🟢 СТАРАЯ (ПРОВЕРЕННАЯ) ЛОГИКА
+  // ---------------------------------------------------------------------------
 
   @override
   void initState() {
@@ -48,6 +55,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
       return;
     }
 
+    if (!mounted) return;
     final user = context.read<AppUser?>();
     if (user != null) {
       await _uploadImage(response.file!, user);
@@ -65,13 +73,13 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка при выборе фото: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Ошибка при выборе фото: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
   }
-
-
 
   Future<void> _uploadImage(XFile image, AppUser user) async {
     if (!mounted) return;
@@ -81,7 +89,7 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
       final imageService = ImageService();
       await imageService.uploadAvatar(imageFile: image, uid: user.uid);
 
-      // ✅ ДОБАВИТЬ: Небольшая задержка для синхронизации Firestore
+      // Задержка для синхронизации, как в старой версии
       await Future.delayed(const Duration(milliseconds: 500));
 
       if (mounted) {
@@ -92,13 +100,14 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
             duration: Duration(seconds: 2),
           ),
         );
-        // ✅ ДОБАВИТЬ: Принудительно обновляем экран
-        setState(() {});
+        setState(() {}); // Принудительное обновление
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка при загрузке фото: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Ошибка при загрузке фото: $e'),
+              backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -107,31 +116,6 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
       }
     }
   }
-  // Future<void> _uploadImage(XFile image, AppUser user) async {
-  //   if (!mounted) return;
-  //   setState(() => _isLoading = true);
-  //
-  //   try {
-  //     final imageService = ImageService();
-  //     await imageService.uploadAvatarAsBase64(imageFile: image, uid: user.uid);
-  //
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         const SnackBar(content: Text('Фото профиля успешно обновлено!'), backgroundColor: Colors.green),
-  //       );
-  //     }
-  //   } catch (e) {
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text('Ошибка при загрузке фото: $e'), backgroundColor: Colors.red),
-  //       );
-  //     }
-  //   } finally {
-  //     if (mounted) {
-  //       setState(() => _isLoading = false);
-  //     }
-  //   }
-  // }
 
   Future<ImageSource?> _showImageSourceDialog() async {
     return showModalBottomSheet<ImageSource>(
@@ -155,240 +139,314 @@ class _AdminProfileScreenState extends State<AdminProfileScreen>
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // 🎨 НОВЫЙ ДИЗАЙН (UI)
+  // ---------------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<AppUser?>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     if (user == null || user.uid.isEmpty) {
-      return const Scaffold(body: Center(child: Text('Ошибка: пользователь не найден')));
+      return const Scaffold(
+          body: Center(child: Text('Ошибка: пользователь не найден')));
     }
 
-    // ✅ ДОБАВЛЕНО: Scaffold
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Профиль'),
+        title: const Text('Профиль администратора'),
       ),
-      body: _buildAdminProfile(context, user),
-    );
-  }
-
-  Widget _buildAdminProfile(BuildContext context, AppUser user) {
-    return AbsorbPointer(
-      absorbing: _isLoading,
-      child: Stack(
+      // Используем Stack, чтобы сохранить функционал блокировки экрана при загрузке (как в старом)
+      body: Stack(
         children: [
-          // ✅ ДОБАВЛЕНО: Material для поддержки InkWell/ListTile
-          Material(
-            color: Colors.transparent,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 24.0),
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildAvatarSection(user),
-                const SizedBox(height: 16),
-                Text(
-                  user.name.isNotEmpty ? user.name : user.email.split('@').first,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user.email,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  margin: const EdgeInsets.symmetric(horizontal: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                // 1. Секция Аватара (Новый стиль)
+                Center(
+                  child: Column(
                     children: [
-                      Icon(Icons.admin_panel_settings, size: 16, color: Colors.blue.shade700),
-                      const SizedBox(width: 8),
+                      Stack(
+                        children: [
+                          GestureDetector(
+                            onTap: () => _pickAndUploadImage(user),
+                            child: Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border:
+                                Border.all(color: Colors.orange, width: 3),
+                              ),
+                              child: ClipOval(
+                                child: UniversalImage(
+                                  imageUrl: user.avatarUrl ?? '',
+                                  width: 120,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                  errorWidget: Center(
+                                    child: Text(
+                                      user.initials,
+                                      style: const TextStyle(
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.camera_alt,
+                                  color: Colors.white, size: 20),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       Text(
-                        'Администратор',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade700,
+                        user.name.isNotEmpty
+                            ? user.name
+                            : user.email.split('@').first,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      Text(
+                        user.email,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade100,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Администратор',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 32),
-                _buildProfileMenuItem(
-                  icon: Icons.manage_accounts_outlined,
-                  title: 'Настройки профиля',
+
+                // 2. Секция "Администрирование" (Новый функционал в новом дизайне)
+                Text(
+                  'Администрирование',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Кнопка Аналитика
+                _buildAdminMenuItem(
+                  context: context,
+                  icon: Icons.analytics,
+                  title: 'Аналитика',
+                  subtitle: 'Статистика и графики',
+                  color: Colors.blue,
                   onTap: () {
-                    Navigator.of(context).push(
+                    Navigator.push(
+                      context,
                       MaterialPageRoute(
-                        builder: (context) => const EditProfileScreen(),
+                        builder: (context) => const AdminAnalyticsScreen(),
                       ),
                     );
                   },
                 ),
-                const Divider(),
-                Consumer<ThemeProvider>(
-                  builder: (context, themeProvider, child) => ListTile(
-                    leading: Icon(
-                      themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                      color: Colors.orange,
-                    ),
-                    title: const Text('Тёмная тема'),
-                    trailing: Switch(
-                      value: themeProvider.isDarkMode,
-                      onChanged: (value) => themeProvider.toggleTheme(user.uid),
-                      activeColor: Colors.orange,
-                    ),
+                const SizedBox(height: 12),
+
+                // Кнопка Пользователи
+                _buildAdminMenuItem(
+                  context: context,
+                  icon: Icons.people,
+                  title: 'Управление пользователями',
+                  subtitle: 'Клиенты и сотрудники',
+                  color: Colors.purple,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AdminUsersScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 32),
+
+                // 3. Секция "Настройки профиля" (Новый дизайн)
+                Text(
+                  'Настройки профиля',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const Divider(),
                 const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: OutlinedButton(
-                    onPressed: () => _showLogoutDialog(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.logout, size: 20),
-                        SizedBox(width: 8),
-                        Text('Выйти из аккаунта', style: TextStyle(fontSize: 16)),
-                      ],
+
+                _buildListTile(
+                  context,
+                  icon: Icons.edit,
+                  title: 'Редактировать профиль',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const EditProfileScreen()),
+                  ),
+                ),
+                _buildListTile(
+                  context,
+                  icon: Icons.notifications,
+                  title: 'Уведомления и рассылка',  // ✅ ИЗМЕНЕНО: переименовано
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => const NotificationsScreen()),
+                  ),
+                ),
+                // ✅ УДАЛЕНО: Пункт "Поддержка" убран
+
+                // Переключатель темы
+                SwitchListTile(
+                  secondary: Icon(
+                    themeProvider.isDarkMode
+                        ? Icons.dark_mode
+                        : Icons.light_mode,
+                    color: Colors.orange,
+                  ),
+                  title: const Text('Темная тема'),
+                  value: themeProvider.isDarkMode,
+                  onChanged: (value) => themeProvider.toggleTheme(user.uid),
+                  activeColor: Colors.orange,
+                ),
+
+                const SizedBox(height: 24),
+
+                // 4. Кнопка Выход (Новый дизайн + Старая логика внутри)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _handleLogout(context),
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Выйти'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
+
+          // Оверлей загрузки (из старого дизайна, но адаптирован)
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.5),
-              child: const Center(child: CircularProgressIndicator(color: Colors.orange)),
+              color: Colors.black.withValues(alpha: 0.5),  // ✅ ИСПРАВЛЕНО: withOpacity → withValues
+              child: const Center(
+                  child: CircularProgressIndicator(color: Colors.orange)),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildAvatarSection(AppUser user) {
-    return Center(
-      child: Stack(
-        children: [
-          CircleAvatar(
-            key: ValueKey(user.avatarUrl ?? ''),
-            radius: 50,
-            backgroundColor: Colors.orange.shade100,
-            child: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
-                ? ClipOval(
-              child: UniversalImage(
-                imageUrl: user.avatarUrl!,
-                width: 100,
-                height: 100,
-                fit: BoxFit.cover,
-                errorWidget: Center(
-                  child: Text(
-                    user.initials,
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
-                  ),
-                ),
-              ),
-            )
-                : Text(
-              user.initials,
-              style: const TextStyle(
-                fontSize: 36,
-                fontWeight: FontWeight.bold,
-                color: Colors.orange,
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Theme.of(context).cardColor,
-                border: Border.all(color: Colors.orange, width: 2),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _pickAndUploadImage(user),
-                  borderRadius: BorderRadius.circular(20),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4.0),
-                    child: Icon(Icons.edit, size: 20, color: Colors.orange),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileMenuItem({
+  // Вспомогательный метод для красивых карточек админки
+  Widget _buildAdminMenuItem({
+    required BuildContext context,
     required IconData icon,
     required String title,
+    required String subtitle,
+    required Color color,
     required VoidCallback onTap,
   }) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(8),
+        leading: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),  // ✅ ИСПРАВЛЕНО: withOpacity → withValues
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: color, size: 24),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  // Вспомогательный метод для простых пунктов меню
+  Widget _buildListTile(BuildContext context,
+      {required IconData icon,
+        required String title,
+        required VoidCallback onTap}) {
     return ListTile(
       leading: Icon(icon, color: Colors.orange),
       title: Text(title),
-      trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
+      trailing:
+      const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
       onTap: onTap,
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  // Логика выхода (совмещена: дизайн диалога из нового, но процесс выхода надежный)
+  Future<void> _handleLogout(BuildContext context) async {
     final authService = Provider.of<AuthService>(context, listen: false);
-    showDialog(
+
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Выход из аккаунта'),
+        title: const Text('Выход'),
         content: const Text('Вы уверены, что хотите выйти?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Отмена'),
           ),
-          TextButton(
-            onPressed: () async {
-              // 1. Закрываем диалог
-              Navigator.of(context).pop();
-
-              // 2. Возвращаемся на главный экран админа (закрываем экран профиля)
-              if (Navigator.canPop(context)) {
-                Navigator.of(context).pop();
-              }
-
-              // 3. Вызываем выход
-              await authService.signOut();
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Выйти'),
           ),
         ],
       ),
     );
+
+    if (confirm == true && mounted) {
+      await authService.signOut();
+      // Дополнительная навигация не нужна, authService.signOut() обычно триггерит authStateChanges
+      // и wrapper перебрасывает на экран логина автоматически.
+    }
   }
 }
-
-

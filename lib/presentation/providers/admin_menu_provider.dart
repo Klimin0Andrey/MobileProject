@@ -41,6 +41,7 @@ class AdminMenuProvider with ChangeNotifier {
     required String deliveryTime,
     required List<String> cuisineType,
     String? imageUrl,
+    double rating = 0.0,  // ✅ ДОБАВЛЕНО: Параметр рейтинга
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -52,6 +53,7 @@ class AdminMenuProvider with ChangeNotifier {
         deliveryTime: deliveryTime,
         cuisineType: cuisineType,
         imageUrl: imageUrl,
+        rating: rating,  // ✅ ДОБАВЛЕНО: Передаем рейтинг
       );
     } catch (e) {
       debugPrint('Ошибка при создании ресторана: $e');
@@ -71,6 +73,7 @@ class AdminMenuProvider with ChangeNotifier {
     List<String>? cuisineType,
     String? imageUrl,
     bool? isActive,
+    double? rating,  // ✅ ДОБАВЛЕНО: Параметр рейтинга
   }) async {
     _isLoading = true;
     notifyListeners();
@@ -84,6 +87,7 @@ class AdminMenuProvider with ChangeNotifier {
         cuisineType: cuisineType,
         imageUrl: imageUrl,
         isActive: isActive,
+        rating: rating,  // ✅ ДОБАВЛЕНО: Передаем рейтинг
       );
     } catch (e) {
       debugPrint('Ошибка при обновлении ресторана: $e');

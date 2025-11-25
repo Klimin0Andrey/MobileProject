@@ -91,7 +91,7 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                 borderRadius: BorderRadius.circular(8),
                 child: restaurant.imageUrl.isNotEmpty
                     ? UniversalImage(
-                        imageUrl:restaurant.imageUrl,
+                        imageUrl: restaurant.imageUrl,
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,
@@ -150,7 +150,10 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                     const SizedBox(height: 4),
                     Text(
                       restaurant.description,
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                      ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -182,7 +185,8 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                             style: const TextStyle(fontSize: 10),
                           ),
                           padding: EdgeInsets.zero,
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          materialTapTargetSize:
+                              MaterialTapTargetSize.shrinkWrap,
                         );
                       }).toList(),
                     ),
@@ -207,11 +211,17 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
                     child: Row(
                       children: [
                         Icon(
-                          restaurant.isActive ? Icons.visibility_off : Icons.visibility,
+                          restaurant.isActive
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                           size: 20,
                         ),
                         const SizedBox(width: 8),
-                        Text(restaurant.isActive ? 'Деактивировать' : 'Активировать'),
+                        Text(
+                          restaurant.isActive
+                              ? 'Деактивировать'
+                              : 'Активировать',
+                        ),
                       ],
                     ),
                   ),
@@ -243,10 +253,12 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
   }
 
   Future<void> _showCreateRestaurantDialog(BuildContext context) async {
+    final _formKey = GlobalKey<FormState>();
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     final deliveryTimeController = TextEditingController();
     final cuisineController = TextEditingController();
+    final ratingController = TextEditingController(text: '0.0');
     XFile? selectedImage;
     String? imageUrl;
 
@@ -256,94 +268,174 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Создать ресторан'),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ✅ ДОБАВЛЕНО: Выбор изображения
-                GestureDetector(
-                  onTap: () async {
-                    final image = await _picker.pickImage(
-                      source: ImageSource.gallery,
-                      imageQuality: 85,
-                    );
-                    if (image != null) {
-                      setDialogState(() {
-                        selectedImage = image;
-                      });
-                    }
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: selectedImage != null
-                        ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(selectedImage!.path),
-                        fit: BoxFit.cover,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Выбор изображения
+                  GestureDetector(
+                    onTap: () async {
+                      final image = await _picker.pickImage(
+                        source: ImageSource.gallery,
+                        imageQuality: 85,
+                      );
+                      if (image != null) {
+                        setDialogState(() {
+                          selectedImage = image;
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    )
-                        : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey),
-                        const SizedBox(height: 8),
-                        Text('Нажмите для выбора фото', style: TextStyle(color: Colors.grey)),
-                      ],
+                      child: selectedImage != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                File(selectedImage!.path),
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.add_photo_alternate,
+                                  size: 48,
+                                  color: Colors.grey,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Нажмите для выбора фото',
+                                  style: TextStyle(color: Colors.grey),
+                                ),
+                              ],
+                            ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Название',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Название',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.restaurant),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите название ресторана';
+                      }
+                      if (value.trim().length < 2) {
+                        return 'Название должно содержать минимум 2 символа';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Описание',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Описание',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    maxLines: 3,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите описание ресторана';
+                      }
+                      if (value.trim().length < 10) {
+                        return 'Описание должно содержать минимум 10 символов';
+                      }
+                      return null;
+                    },
                   ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: deliveryTimeController,
-                  decoration: const InputDecoration(
-                    labelText: 'Время доставки (например: 30-40 мин)',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: deliveryTimeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Время доставки',
+                      hintText: 'Например: 30-40 мин',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.access_time),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите время доставки';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: cuisineController,
-                  decoration: const InputDecoration(
-                    labelText: 'Тип кухни (через запятую)',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: cuisineController,
+                    decoration: const InputDecoration(
+                      labelText: 'Тип кухни',
+                      hintText:
+                          'Через запятую, например: Итальянская, Европейская',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.restaurant_menu),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите тип кухни';
+                      }
+                      final cuisines = value
+                          .split(',')
+                          .map((e) => e.trim())
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+                      if (cuisines.isEmpty) {
+                        return 'Введите хотя бы один тип кухни';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: ratingController,
+                    decoration: const InputDecoration(
+                      labelText: 'Рейтинг',
+                      hintText: 'От 0.0 до 5.0',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.star, color: Colors.amber),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите рейтинг';
+                      }
+                      final rating = double.tryParse(value);
+                      if (rating == null) {
+                        return 'Введите корректное число';
+                      }
+                      if (rating < 0.0 || rating > 5.0) {
+                        return 'Рейтинг должен быть от 0.0 до 5.0';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
               child: const Text('Отмена'),
             ),
             ElevatedButton(
               onPressed: () {
-                if (nameController.text.isNotEmpty &&
-                    descriptionController.text.isNotEmpty &&
-                    deliveryTimeController.text.isNotEmpty &&
-                    cuisineController.text.isNotEmpty) {
+                if (_formKey.currentState!.validate()) {
                   Navigator.pop(context, true);
                 }
               },
@@ -356,11 +448,14 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
 
     if (result == true) {
       try {
-        // ✅ ДОБАВЛЕНО: Загрузка фото в Cloudinary
+        // Загрузка фото в Cloudinary
         if (selectedImage != null) {
-          final tempRestaurantId = DateTime.now().millisecondsSinceEpoch.toString();
-          imageUrl = await Provider.of<AdminMenuProvider>(context, listen: false)
-              .uploadRestaurantImage(selectedImage!.path, tempRestaurantId);
+          final tempRestaurantId = DateTime.now().millisecondsSinceEpoch
+              .toString();
+          imageUrl = await Provider.of<AdminMenuProvider>(
+            context,
+            listen: false,
+          ).uploadRestaurantImage(selectedImage!.path, tempRestaurantId);
         }
 
         final cuisineTypes = cuisineController.text
@@ -369,78 +464,395 @@ class _AdminMenuScreenState extends State<AdminMenuScreen> {
             .where((e) => e.isNotEmpty)
             .toList();
 
-        await Provider.of<AdminMenuProvider>(context, listen: false)
-            .createRestaurant(
-          name: nameController.text,
-          description: descriptionController.text,
-          deliveryTime: deliveryTimeController.text,
+        final rating = double.tryParse(ratingController.text) ?? 0.0;
+
+        await Provider.of<AdminMenuProvider>(
+          context,
+          listen: false,
+        ).createRestaurant(
+          name: nameController.text.trim(),
+          description: descriptionController.text.trim(),
+          deliveryTime: deliveryTimeController.text.trim(),
           cuisineType: cuisineTypes,
           imageUrl: imageUrl,
+          rating: rating,
         );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ресторан создан')),
+            const SnackBar(
+              content: Text('Ресторан успешно создан'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка: $e')),
+            SnackBar(
+              content: Text('Ошибка при создании ресторана: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
+      } finally {
+        nameController.dispose();
+        descriptionController.dispose();
+        deliveryTimeController.dispose();
+        cuisineController.dispose();
+        ratingController.dispose();
       }
+    } else {
+      // Очистка контроллеров при отмене
+      nameController.dispose();
+      descriptionController.dispose();
+      deliveryTimeController.dispose();
+      cuisineController.dispose();
+      ratingController.dispose();
     }
   }
 
-  Future<void> _showEditRestaurantDialog(BuildContext context, Restaurant restaurant) async {
-    // Аналогично созданию, но с предзаполненными полями
-    // (Упрощенная версия)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Редактирование ресторана (в разработке)')),
+  Future<void> _showEditRestaurantDialog(
+    BuildContext context,
+    Restaurant restaurant,
+  ) async {
+    final _formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(text: restaurant.name);
+    final descriptionController = TextEditingController(
+      text: restaurant.description,
     );
+    final deliveryTimeController = TextEditingController(
+      text: restaurant.deliveryTime,
+    );
+    final cuisineController = TextEditingController(
+      text: restaurant.cuisineType.join(', '),
+    );
+    final ratingController = TextEditingController(
+      text: restaurant.rating.toStringAsFixed(1),
+    );
+    XFile? selectedImage;
+    String? imageUrl = restaurant.imageUrl;
+    bool imageChanged = false;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Редактировать ресторан'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Выбор изображения
+                  GestureDetector(
+                    onTap: () async {
+                      final image = await _picker.pickImage(
+                        source: ImageSource.gallery,
+                        imageQuality: 85,
+                      );
+                      if (image != null) {
+                        setDialogState(() {
+                          selectedImage = image;
+                          imageChanged = true;
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: selectedImage != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.file(
+                                File(selectedImage!.path),
+                                fit: BoxFit.cover,
+                              ),
+                            )
+                          : (restaurant.imageUrl.isNotEmpty
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      height: 150,
+                                      child: UniversalImage(
+                                        imageUrl: restaurant.imageUrl,
+                                        // ✅ ИСПРАВЛЕНО: Не передаем double.infinity, используем null
+                                        width: null,
+                                        height: 150,
+                                        fit: BoxFit.cover,
+                                        errorWidget: Container(
+                                          width: double.infinity,
+                                          height: 150,
+                                          color: Colors.grey.shade300,
+                                          child: const Icon(
+                                            Icons.restaurant,
+                                            size: 48,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.add_photo_alternate,
+                                        size: 48,
+                                        color: Colors.grey,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'Нажмите для выбора фото',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    ],
+                                  )),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Название',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.restaurant),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите название ресторана';
+                      }
+                      if (value.trim().length < 2) {
+                        return 'Название должно содержать минимум 2 символа';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Описание',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    maxLines: 3,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите описание ресторана';
+                      }
+                      if (value.trim().length < 10) {
+                        return 'Описание должно содержать минимум 10 символов';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: deliveryTimeController,
+                    decoration: const InputDecoration(
+                      labelText: 'Время доставки',
+                      hintText: 'Например: 30-40 мин',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.access_time),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите время доставки';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: cuisineController,
+                    decoration: const InputDecoration(
+                      labelText: 'Тип кухни',
+                      hintText:
+                          'Через запятую, например: Итальянская, Европейская',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.restaurant_menu),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите тип кухни';
+                      }
+                      final cuisines = value
+                          .split(',')
+                          .map((e) => e.trim())
+                          .where((e) => e.isNotEmpty)
+                          .toList();
+                      if (cuisines.isEmpty) {
+                        return 'Введите хотя бы один тип кухни';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: ratingController,
+                    decoration: const InputDecoration(
+                      labelText: 'Рейтинг',
+                      hintText: 'От 0.0 до 5.0',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.star, color: Colors.amber),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите рейтинг';
+                      }
+                      final rating = double.tryParse(value);
+                      if (rating == null) {
+                        return 'Введите корректное число';
+                      }
+                      if (rating < 0.0 || rating > 5.0) {
+                        return 'Рейтинг должен быть от 0.0 до 5.0';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  Navigator.pop(context, true);
+                }
+              },
+              child: const Text('Сохранить'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true) {
+      try {
+        // Загрузка нового изображения, если выбрано
+        if (selectedImage != null && imageChanged) {
+          imageUrl = await Provider.of<AdminMenuProvider>(
+            context,
+            listen: false,
+          ).uploadRestaurantImage(selectedImage!.path, restaurant.id);
+        }
+
+        final cuisineTypes = cuisineController.text
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
+
+        final rating =
+            double.tryParse(ratingController.text) ?? restaurant.rating;
+
+        await Provider.of<AdminMenuProvider>(
+          context,
+          listen: false,
+        ).updateRestaurant(
+          restaurantId: restaurant.id,
+          name: nameController.text.trim(),
+          description: descriptionController.text.trim(),
+          deliveryTime: deliveryTimeController.text.trim(),
+          cuisineType: cuisineTypes,
+          imageUrl: imageUrl,
+          rating: rating,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Ресторан успешно обновлен'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ошибка при обновлении ресторана: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        nameController.dispose();
+        descriptionController.dispose();
+        deliveryTimeController.dispose();
+        cuisineController.dispose();
+        ratingController.dispose();
+      }
+    } else {
+      // Очистка контроллеров при отмене
+      nameController.dispose();
+      descriptionController.dispose();
+      deliveryTimeController.dispose();
+      cuisineController.dispose();
+      ratingController.dispose();
+    }
   }
 
-  Future<void> _deactivateRestaurant(BuildContext context, Restaurant restaurant) async {
+  Future<void> _deactivateRestaurant(
+    BuildContext context,
+    Restaurant restaurant,
+  ) async {
     try {
-      await Provider.of<AdminMenuProvider>(context, listen: false)
-          .updateRestaurant(
-        restaurantId: restaurant.id,
-        isActive: false,
-      );
+      await Provider.of<AdminMenuProvider>(
+        context,
+        listen: false,
+      ).updateRestaurant(restaurantId: restaurant.id, isActive: false);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ресторан деактивирован')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Ресторан деактивирован')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
       }
     }
   }
 
-  Future<void> _activateRestaurant(BuildContext context, Restaurant restaurant) async {
+  Future<void> _activateRestaurant(
+    BuildContext context,
+    Restaurant restaurant,
+  ) async {
     try {
-      await Provider.of<AdminMenuProvider>(context, listen: false)
-          .updateRestaurant(
-        restaurantId: restaurant.id,
-        isActive: true,
-      );
+      await Provider.of<AdminMenuProvider>(
+        context,
+        listen: false,
+      ).updateRestaurant(restaurantId: restaurant.id, isActive: true);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Ресторан активирован')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Ресторан активирован')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
       }
     }
   }
@@ -473,8 +885,9 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
         ],
       ),
       body: StreamBuilder<List<Dish>>(
-        stream: Provider.of<AdminMenuProvider>(context)
-            .getRestaurantDishes(widget.restaurant.id),
+        stream: Provider.of<AdminMenuProvider>(
+          context,
+        ).getRestaurantDishes(widget.restaurant.id),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -534,7 +947,9 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
                       ),
                     ),
                   ),
-                  ...categoryDishes.map((dish) => _buildDishCard(context, dish)),
+                  ...categoryDishes.map(
+                    (dish) => _buildDishCard(context, dish),
+                  ),
                 ],
               );
             },
@@ -600,7 +1015,8 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
           children: [
             Switch(
               value: dish.isAvailable,
-              onChanged: (value) => _toggleDishAvailability(context, dish, value),
+              onChanged: (value) =>
+                  _toggleDishAvailability(context, dish, value),
             ),
             PopupMenuButton(
               itemBuilder: (context) => [
@@ -640,6 +1056,7 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
   }
 
   Future<void> _showCreateDishDialog(BuildContext context) async {
+    final _formKey = GlobalKey<FormState>();
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     final priceController = TextEditingController();
@@ -653,95 +1070,150 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Добавить блюдо'),
           content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ✅ ДОБАВЛЕНО: Выбор изображения
-                GestureDetector(
-                  onTap: () async {
-                    final image = await _picker.pickImage(
-                      source: ImageSource.gallery,
-                      imageQuality: 85,
-                    );
-                    if (image != null) {
-                      setDialogState(() {
-                        selectedImage = image;
-                      });
-                    }
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    height: 150,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: selectedImage != null
-                        ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(selectedImage!.path),
-                        fit: BoxFit.cover,
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Выбор изображения
+                  GestureDetector(
+                    onTap: () async {
+                      final image = await _picker.pickImage(
+                        source: ImageSource.gallery,
+                        imageQuality: 85,
+                      );
+                      if (image != null) {
+                        setDialogState(() {
+                          selectedImage = image;
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    )
-                        : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey),
-                        const SizedBox(height: 8),
-                        Text('Нажмите для выбора фото', style: TextStyle(color: Colors.grey)),
-                      ],
+                      child: selectedImage != null
+                          ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(selectedImage!.path),
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                          : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_photo_alternate,
+                            size: 48,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Нажмите для выбора фото',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Название',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Название',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.fastfood),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите название блюда';
+                      }
+                      if (value.trim().length < 2) {
+                        return 'Название должно содержать минимум 2 символа';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: descriptionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Описание',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Описание',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    maxLines: 3,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите описание блюда';
+                      }
+                      if (value.trim().length < 10) {
+                        return 'Описание должно содержать минимум 10 символов';
+                      }
+                      return null;
+                    },
                   ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: priceController,
-                  decoration: const InputDecoration(
-                    labelText: 'Цена',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: priceController,
+                    decoration: const InputDecoration(
+                      labelText: 'Цена',
+                      hintText: 'Например: 350.00',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите цену';
+                      }
+                      final price = double.tryParse(value);
+                      if (price == null) {
+                        return 'Введите корректное число';
+                      }
+                      if (price <= 0) {
+                        return 'Цена должна быть больше 0';
+                      }
+                      return null;
+                    },
                   ),
-                  keyboardType: TextInputType.number,
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: categoryController,
-                  decoration: const InputDecoration(
-                    labelText: 'Категория',
-                    border: OutlineInputBorder(),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: categoryController,
+                    decoration: const InputDecoration(
+                      labelText: 'Категория',
+                      hintText: 'Например: Основные блюда',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.category),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите категорию';
+                      }
+                      if (value.trim().length < 2) {
+                        return 'Категория должна содержать минимум 2 символа';
+                      }
+                      return null;
+                    },
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context, false),
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
               child: const Text('Отмена'),
             ),
             ElevatedButton(
               onPressed: () {
-                if (nameController.text.isNotEmpty &&
-                    descriptionController.text.isNotEmpty &&
-                    priceController.text.isNotEmpty &&
-                    categoryController.text.isNotEmpty) {
+                if (_formKey.currentState!.validate()) {
                   Navigator.pop(context, true);
                 }
               },
@@ -754,46 +1226,68 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
 
     if (result == true) {
       try {
-        final price = double.tryParse(priceController.text);
-        if (price == null || price <= 0) {
-          throw Exception('Некорректная цена');
-        }
+        final price = double.tryParse(priceController.text) ?? 0.0;
 
-        // ✅ ДОБАВЛЕНО: Загрузка фото в Cloudinary
+        // Загрузка фото в Cloudinary
         if (selectedImage != null) {
           final tempDishId = DateTime.now().millisecondsSinceEpoch.toString();
-          imageUrl = await Provider.of<AdminMenuProvider>(context, listen: false)
-              .uploadDishImage(selectedImage!.path, tempDishId);
+          imageUrl = await Provider.of<AdminMenuProvider>(
+            context,
+            listen: false,
+          ).uploadDishImage(selectedImage!.path, tempDishId);
         }
 
         await Provider.of<AdminMenuProvider>(context, listen: false).createDish(
           restaurantId: widget.restaurant.id,
-          name: nameController.text,
-          description: descriptionController.text,
+          name: nameController.text.trim(),
+          description: descriptionController.text.trim(),
           price: price,
-          category: categoryController.text,
-          imageUrl: imageUrl, // ✅ ДОБАВЛЕНО
+          category: categoryController.text.trim(),
+          imageUrl: imageUrl,
         );
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Блюдо добавлено')),
+            const SnackBar(
+              content: Text('Блюдо успешно добавлено'),
+              backgroundColor: Colors.green,
+            ),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка: $e')),
+            SnackBar(
+              content: Text('Ошибка при добавлении блюда: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
+      } finally {
+        nameController.dispose();
+        descriptionController.dispose();
+        priceController.dispose();
+        categoryController.dispose();
       }
+    } else {
+      // Очистка контроллеров при отмене
+      nameController.dispose();
+      descriptionController.dispose();
+      priceController.dispose();
+      categoryController.dispose();
     }
   }
 
-  Future<void> _toggleDishAvailability(BuildContext context, Dish dish, bool isAvailable) async {
+  Future<void> _toggleDishAvailability(
+    BuildContext context,
+    Dish dish,
+    bool isAvailable,
+  ) async {
     try {
-      await Provider.of<AdminMenuProvider>(context, listen: false)
-          .toggleDishAvailability(dish.id, isAvailable);
+      await Provider.of<AdminMenuProvider>(
+        context,
+        listen: false,
+      ).toggleDishAvailability(dish.id, isAvailable);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -804,17 +1298,255 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Ошибка: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
       }
     }
   }
 
   Future<void> _showEditDishDialog(BuildContext context, Dish dish) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Редактирование блюда (в разработке)')),
+    final _formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(text: dish.name);
+    final descriptionController = TextEditingController(text: dish.description);
+    final priceController = TextEditingController(text: dish.price.toStringAsFixed(2));
+    final categoryController = TextEditingController(text: dish.category);
+    XFile? selectedImage;
+    String? imageUrl = dish.imageUrl;
+    bool imageChanged = false;
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Редактировать блюдо'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Выбор изображения
+                  GestureDetector(
+                    onTap: () async {
+                      final image = await _picker.pickImage(
+                        source: ImageSource.gallery,
+                        imageQuality: 85,
+                      );
+                      if (image != null) {
+                        setDialogState(() {
+                          selectedImage = image;
+                          imageChanged = true;
+                        });
+                      }
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: selectedImage != null
+                          ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.file(
+                          File(selectedImage!.path),
+                          fit: BoxFit.cover,
+                        ),
+                      )
+                          : (dish.imageUrl.isNotEmpty
+                          ? ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 150,
+                          child: UniversalImage(
+                            imageUrl: dish.imageUrl,
+                            width: null,
+                            height: 150,
+                            fit: BoxFit.cover,
+                            errorWidget: Container(
+                              width: double.infinity,
+                              height: 150,
+                              color: Colors.grey.shade300,
+                              child: const Icon(Icons.fastfood, size: 48),
+                            ),
+                          ),
+                        ),
+                      )
+                          : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.add_photo_alternate,
+                            size: 48,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Нажмите для выбора фото',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      )),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Название',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.fastfood),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите название блюда';
+                      }
+                      if (value.trim().length < 2) {
+                        return 'Название должно содержать минимум 2 символа';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: descriptionController,
+                    decoration: const InputDecoration(
+                      labelText: 'Описание',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.description),
+                    ),
+                    maxLines: 3,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите описание блюда';
+                      }
+                      if (value.trim().length < 10) {
+                        return 'Описание должно содержать минимум 10 символов';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: priceController,
+                    decoration: const InputDecoration(
+                      labelText: 'Цена',
+                      hintText: 'Например: 350.00',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.attach_money),
+                    ),
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите цену';
+                      }
+                      final price = double.tryParse(value);
+                      if (price == null) {
+                        return 'Введите корректное число';
+                      }
+                      if (price <= 0) {
+                        return 'Цена должна быть больше 0';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: categoryController,
+                    decoration: const InputDecoration(
+                      labelText: 'Категория',
+                      hintText: 'Например: Основные блюда',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.category),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Введите категорию';
+                      }
+                      if (value.trim().length < 2) {
+                        return 'Категория должна содержать минимум 2 символа';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context, false);
+              },
+              child: const Text('Отмена'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  Navigator.pop(context, true);
+                }
+              },
+              child: const Text('Сохранить'),
+            ),
+          ],
+        ),
+      ),
     );
+
+    if (result == true) {
+      try {
+        // Загрузка нового изображения, если выбрано
+        if (selectedImage != null && imageChanged) {
+          imageUrl = await Provider.of<AdminMenuProvider>(
+            context,
+            listen: false,
+          ).uploadDishImage(selectedImage!.path, dish.id);
+        }
+
+        final price = double.tryParse(priceController.text) ?? dish.price;
+
+        await Provider.of<AdminMenuProvider>(context, listen: false).updateDish(
+          dishId: dish.id,
+          name: nameController.text.trim(),
+          description: descriptionController.text.trim(),
+          price: price,
+          category: categoryController.text.trim(),
+          imageUrl: imageUrl,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Блюдо успешно обновлено'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Ошибка при обновлении блюда: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        nameController.dispose();
+        descriptionController.dispose();
+        priceController.dispose();
+        categoryController.dispose();
+      }
+    } else {
+      // Очистка контроллеров при отмене
+      nameController.dispose();
+      descriptionController.dispose();
+      priceController.dispose();
+      categoryController.dispose();
+    }
   }
 
   Future<void> _deleteDish(BuildContext context, Dish dish) async {
@@ -839,19 +1571,21 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
 
     if (confirm == true) {
       try {
-        await Provider.of<AdminMenuProvider>(context, listen: false)
-            .updateDish(dishId: dish.id, isAvailable: false); // Или удалить полностью
+        await Provider.of<AdminMenuProvider>(context, listen: false).updateDish(
+          dishId: dish.id,
+          isAvailable: false,
+        ); // Или удалить полностью
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Блюдо удалено')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Блюдо удалено')));
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Ошибка: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Ошибка: $e')));
         }
       }
     }
