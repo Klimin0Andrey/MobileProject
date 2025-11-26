@@ -85,6 +85,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<AppUser?>(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (user == null) {
       return const Scaffold(
@@ -113,7 +114,10 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
 
                 if (snapshot.hasError) {
                   return Center(
-                    child: Text('Ошибка: ${snapshot.error}'),
+                    child: Text(
+                      'Ошибка: ${snapshot.error}',
+                      style: TextStyle(color: isDark ? Colors.white : Colors.black),
+                    ),
                   );
                 }
 
@@ -151,7 +155,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                     final message = messages[index];
                     final isMyMessage = message.senderId == user.uid;
 
-                    return _buildMessageBubble(message, isMyMessage);
+                    return _buildMessageBubble(message, isMyMessage, isDark);
                   },
                 );
               },
@@ -159,32 +163,39 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
           ),
 
           // Поле ввода сообщения
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: SafeArea(
+          SafeArea(
+            top: false,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, -2),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
                   Expanded(
                     child: TextField(
                       controller: _messageController,
+                      style: TextStyle(
+                        color: isDark ? Colors.white : Colors.black,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Введите сообщение...',
+                        hintStyle: TextStyle(
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
-                        fillColor: Colors.grey.shade200,
+                        fillColor: isDark ? Colors.grey[800] : Colors.grey.shade200,
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 10,
@@ -224,7 +235,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
     );
   }
 
-  Widget _buildMessageBubble(ChatMessage message, bool isMyMessage) {
+  Widget _buildMessageBubble(ChatMessage message, bool isMyMessage, bool isDark) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -236,14 +247,16 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             // Аватар получателя (слева)
             CircleAvatar(
               radius: 16,
-              backgroundColor: Colors.orange.shade100,
+              backgroundColor: isDark 
+                  ? Colors.grey[700] 
+                  : Colors.orange.shade100,
               child: Text(
                 message.senderName.isNotEmpty
                     ? message.senderName[0].toUpperCase()
                     : '?',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.orange.shade900,
+                  color: isDark ? Colors.white : Colors.orange.shade900,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -256,7 +269,9 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                color: isMyMessage ? Colors.orange : Colors.grey.shade200,
+                color: isMyMessage 
+                    ? Colors.orange 
+                    : (isDark ? Colors.grey[800] : Colors.grey.shade200),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(16),
                   topRight: const Radius.circular(16),
@@ -275,14 +290,16 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: isMyMessage ? Colors.white : Colors.grey.shade700,
+                          color: isDark ? Colors.grey[300] : Colors.grey.shade700,
                         ),
                       ),
                     ),
                   Text(
                     message.text,
                     style: TextStyle(
-                      color: isMyMessage ? Colors.white : Colors.black87,
+                      color: isMyMessage 
+                          ? Colors.white 
+                          : (isDark ? Colors.white : Colors.black87),
                       fontSize: 15,
                     ),
                   ),
@@ -293,7 +310,7 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
                       fontSize: 11,
                       color: isMyMessage
                           ? Colors.white70
-                          : Colors.grey.shade600,
+                          : (isDark ? Colors.grey[400] : Colors.grey.shade600),
                     ),
                   ),
                 ],
@@ -306,14 +323,16 @@ class _OrderChatScreenState extends State<OrderChatScreen> {
             // Аватар отправителя (справа)
             CircleAvatar(
               radius: 16,
-              backgroundColor: Colors.orange.shade100,
+              backgroundColor: isDark 
+                  ? Colors.grey[700] 
+                  : Colors.orange.shade100,
               child: Text(
                 message.senderName.isNotEmpty
                     ? message.senderName[0].toUpperCase()
                     : '?',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.orange.shade900,
+                  color: isDark ? Colors.white : Colors.orange.shade900,
                   fontWeight: FontWeight.bold,
                 ),
               ),

@@ -157,24 +157,32 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
     // ✅ Проверяем статус тикета
     if (ticket.status == SupportTicket.statusResolved) {
       // Тикет закрыт - показываем информационное сообщение
+      final isDark = Theme.of(context).brightness == Brightness.dark;
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.grey.shade200,
+          color: isDark ? Colors.grey[800] : Colors.grey.shade200,
           border: Border(
-            top: BorderSide(color: Colors.grey.shade300, width: 1),
+            top: BorderSide(
+              color: isDark ? Colors.grey[700]! : Colors.grey.shade300,
+              width: 1,
+            ),
           ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.lock_outline, color: Colors.grey.shade600, size: 32),
+            Icon(
+              Icons.lock_outline,
+              color: isDark ? Colors.grey[400] : Colors.grey.shade600,
+              size: 32,
+            ),
             const SizedBox(height: 8),
             Text(
               'Тикет закрыт',
               style: TextStyle(
-                color: Colors.grey.shade700,
+                color: isDark ? Colors.grey[300] : Colors.grey.shade700,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -184,7 +192,7 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
               'Чтобы написать сообщение, измените статус на "В работе" или "Открыто"',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey.shade600,
+                color: isDark ? Colors.grey[400] : Colors.grey.shade600,
               ),
               textAlign: TextAlign.center,
             ),
@@ -194,50 +202,61 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
     }
 
     // Тикет открыт - показываем обычное поле ввода
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Ответ поддержки...',
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.05),
+              blurRadius: 5,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black,
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
+                decoration: InputDecoration(
+                  hintText: 'Ответ поддержки...',
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                  filled: true,
+                  fillColor: isDark ? Colors.grey[800] : Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 10,
+                  ),
                 ),
+                maxLines: 3,
+                minLines: 1,
+                textCapitalization: TextCapitalization.sentences,
               ),
-              maxLines: 3,
-              minLines: 1,
-              textCapitalization: TextCapitalization.sentences,
             ),
-          ),
-          const SizedBox(width: 8),
-          CircleAvatar(
-            backgroundColor: Theme.of(context).primaryColor,
-            child: IconButton(
-              onPressed: _sendMessage,
-              icon: const Icon(Icons.send, color: Colors.white, size: 20),
+            const SizedBox(width: 8),
+            CircleAvatar(
+              backgroundColor: Theme.of(context).primaryColor,
+              child: IconButton(
+                onPressed: _sendMessage,
+                icon: const Icon(Icons.send, color: Colors.white, size: 20),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -365,3 +384,6 @@ class _AdminChatScreenState extends State<AdminChatScreen> {
     }
   }
 }
+
+
+

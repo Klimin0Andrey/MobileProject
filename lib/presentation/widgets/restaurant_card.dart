@@ -117,7 +117,10 @@ class RestaurantCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: Colors.green.shade50,
+                              // ✅ ИСПРАВЛЕНО: Адаптивный цвет для темной темы
+                              color: Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.green.shade900.withOpacity(0.5)
+                                  : Colors.green.shade50,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(
@@ -126,7 +129,14 @@ class RestaurantCard extends StatelessWidget {
                                 const SizedBox(width: 4),
                                 Text(
                                   restaurant.rating.toStringAsFixed(1),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                  // ✅ ИСПРАВЛЕНО: Адаптивный цвет текста
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.green.shade300
+                                        : Colors.green.shade900,
+                                  ),
                                 ),
                               ],
                             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // ✅ Добавлен импорт
 import 'package:provider/provider.dart';
 import 'package:linux_test2/presentation/providers/cart_provider.dart';
 import 'package:linux_test2/data/models/cart_item.dart';
@@ -10,11 +11,16 @@ class CartScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Определяем тему
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Корзина'),
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
+        // ✅ Такой же стиль, как в profile_screen.dart
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        foregroundColor: isDark ? Colors.white : Colors.black,
+        elevation: 0,
       ),
       body: Consumer<CartProvider>(
         builder: (context, cartProvider, child) {
@@ -52,7 +58,19 @@ class CartScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Theme.of(context).cardColor,
-                  border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                  // В темной теме граница может быть слишком яркой, делаем аккуратнее
+                  border: Border(
+                    top: BorderSide(
+                      color: isDark ? Colors.white10 : Colors.grey.shade300,
+                    ),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      offset: const Offset(0, -4),
+                      blurRadius: 10,
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
@@ -94,8 +112,15 @@ class CartScreen extends StatelessWidget {
                           backgroundColor: Colors.orange,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
                         ),
-                        child: const Text('Оформить заказ', style: TextStyle(fontSize: 16)),
+                        child: const Text(
+                          'Оформить заказ',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                       ),
                     ),
                   ],
@@ -120,16 +145,18 @@ class CartItemCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             // Изображение блюда
             Container(
-              width: 60,
-              height: 60,
+              width: 70, // Чуть увеличил картинку
+              height: 70,
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: Colors.grey[200],
                 borderRadius: BorderRadius.circular(8),
               ),
               child: item.dish.imageUrl.isNotEmpty
@@ -138,13 +165,13 @@ class CartItemCard extends StatelessWidget {
                 child: UniversalImage(
                   imageUrl: item.dish.imageUrl,
                   fit: BoxFit.cover,
-                  width: 60,
-                  height: 60,
+                  width: 70,
+                  height: 70,
                 ),
               )
-                  : null,
+                  : const Icon(Icons.fastfood, color: Colors.grey),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 16),
 
             // Информация о блюде
             Expanded(
@@ -158,13 +185,15 @@ class CartItemCard extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: colorScheme.onSurface,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 4),
                   Text(
                     '${item.dish.price} ₽',
                     style: const TextStyle(
                       color: Colors.green,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -172,51 +201,60 @@ class CartItemCard extends StatelessWidget {
             ),
 
             // Управление количеством
-            Row(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.remove,
-                    size: 20,
-                    color: colorScheme.onSurface,
+            Container(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceVariant.withOpacity(0.3), // Легкий фон для кнопок
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      context.read<CartProvider>().decrementQuantity(item.dish.id);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Icon(Icons.remove, size: 18, color: colorScheme.onSurface),
+                    ),
                   ),
-                  onPressed: () {
-                    context.read<CartProvider>().decrementQuantity(item.dish.id);
-                  },
-                ),
-                Text(
-                  '${item.quantity}',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
+                  Text(
+                    '${item.quantity}',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: colorScheme.onSurface,
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: Icon(
-                    Icons.add,
-                    size: 20,
-                    color: colorScheme.onSurface,
+                  InkWell(
+                    onTap: () {
+                      context.read<CartProvider>().incrementQuantity(item.dish.id);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Icon(Icons.add, size: 18, color: colorScheme.onSurface),
+                    ),
                   ),
-                  onPressed: () {
-                    context.read<CartProvider>().incrementQuantity(item.dish.id);
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
 
-            // Кнопка удаления
-            IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
-              onPressed: () {
+            const SizedBox(width: 8),
+
+            // Кнопка удаления (Маленькая красная урна)
+            InkWell(
+              onTap: () {
                 context.read<CartProvider>().removeFromCart(item.dish.id);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text('${item.dish.name} удален из корзины'),
-                    backgroundColor: colorScheme.surface,
+                    duration: const Duration(seconds: 1),
                   ),
                 );
               },
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Icon(Icons.delete_outline, color: Colors.red.shade400, size: 22),
+              ),
             ),
           ],
         ),

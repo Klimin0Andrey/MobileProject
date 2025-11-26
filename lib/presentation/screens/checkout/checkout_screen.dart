@@ -445,7 +445,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
-                onPressed: _selectAddress, // Используем наш новый метод
+                onPressed: _selectAddress,
+                // ✅ ИСПРАВЛЕНО: Оранжевая кнопка
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.orange,
+                  side: const BorderSide(color: Colors.orange),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
                 child: const Text('Изменить адрес'),
               ),
             ),

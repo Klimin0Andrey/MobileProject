@@ -33,8 +33,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
   @override
   void initState() {
     super.initState();
-    // Пробуем найти юзера, но без фанатизма.
-    // Если GPS выключен, останемся на Москве.
+    // Пробуем найти юзера
     _locateUser();
   }
 
@@ -54,8 +53,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         _moveToPosition(newPoint);
       }
     } catch (e) {
-      // Ошибка GPS не критична, просто остаемся на месте
-      // Но обновим адрес для текущей точки (Москвы)
+      // Ошибка GPS не критична, просто остаемся на месте, но резолвим адрес
       _resolveAddress(_currentCenter);
     } finally {
       if (mounted) setState(() => _isLoadingLocation = false);
@@ -180,82 +178,126 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             ),
           ),
 
-          // 3. ПОЛЕ ПОИСКА
+          // 3. ПОИСК И КНОПКА НАЗАД (ОБНОВЛЕННАЯ СЕКЦИЯ)
           Positioned(
             top: 50,
             left: 16,
             right: 16,
-            child: Column(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Card(
-                  elevation: 6,
-                  shadowColor: Colors.black26,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  child: TextField(
-                    controller: _searchController,
-                    onChanged: _onSearchChanged,
-                    decoration: InputDecoration(
-                      hintText: 'Поиск (например: Тверская 1)',
-                      prefixIcon: const Icon(Icons.search, color: Colors.orange),
-                      // Кнопка очистки текста
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                        icon: const Icon(Icons.clear, color: Colors.grey),
-                        onPressed: () {
-                          _searchController.clear();
-                          setState(() => _searchResults = []);
-                        },
+                // 3.1 Кнопка НАЗАД (Круглая, белая)
+                Container(
+                  margin: const EdgeInsets.only(top: 4), // Выравниваем визуально с полем
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       )
-                          : null,
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 15),
-                    ),
+                    ],
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                    onPressed: () => Navigator.pop(context),
                   ),
                 ),
 
-                // 4. СПИСОК ПОДСКАЗОК
-                if (_searchResults.isNotEmpty || _isSearching)
-                  Container(
-                    margin: const EdgeInsets.only(top: 8),
-                    constraints: const BoxConstraints(maxHeight: 220),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 10)],
-                    ),
-                    child: _isSearching
-                        ? const Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: Center(child: CircularProgressIndicator(color: Colors.orange))
-                    )
-                        : ListView.separated(
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      itemCount: _searchResults.length,
-                      separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
-                      itemBuilder: (context, index) {
-                        final item = _searchResults[index];
-                        return ListTile(
-                          title: Text(
-                            item['fullAddress'] ?? 'Неизвестно',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500), // Увеличил шрифт
+                const SizedBox(width: 12),
+
+                // 3.2 ПОИСК И ВЫПАДАЮЩИЙ СПИСОК
+                Expanded(
+                  child: Column(
+                    children: [
+                      Card(
+                        elevation: 6,
+                        shadowColor: Colors.black26,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: _onSearchChanged,
+                          decoration: InputDecoration(
+                            hintText: 'Поиск (например: Тверская 1)',
+                            prefixIcon:
+                            const Icon(Icons.search, color: Colors.orange),
+                            // Кнопка очистки текста
+                            suffixIcon: _searchController.text.isNotEmpty
+                                ? IconButton(
+                              icon: const Icon(Icons.clear,
+                                  color: Colors.grey),
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _searchResults = []);
+                              },
+                            )
+                                : null,
+                            border: InputBorder.none,
+                            contentPadding:
+                            const EdgeInsets.symmetric(vertical: 15),
                           ),
-                          subtitle: Text(
-                            item['displayName'] ?? '',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 13, color: Colors.grey), // Увеличил шрифт
+                        ),
+                      ),
+
+                      // 4. СПИСОК ПОДСКАЗОК (Внутри колонки, чтобы быть под полем)
+                      if (_searchResults.isNotEmpty || _isSearching)
+                        Container(
+                          margin: const EdgeInsets.only(top: 8),
+                          constraints: const BoxConstraints(maxHeight: 220),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              const BoxShadow(
+                                  color: Colors.black12, blurRadius: 10)
+                            ],
                           ),
-                          onTap: () {
-                            // При клике летим на точку
-                            _moveToPosition(LatLng(item['lat'], item['lng']));
-                          },
-                        );
-                      },
-                    ),
+                          child: _isSearching
+                              ? const Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: Center(
+                                child: CircularProgressIndicator(
+                                    color: Colors.orange)),
+                          )
+                              : ListView.separated(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: _searchResults.length,
+                            separatorBuilder: (_, __) => const Divider(
+                                height: 1, indent: 16, endIndent: 16),
+                            itemBuilder: (context, index) {
+                              final item = _searchResults[index];
+                              return ListTile(
+                                title: Text(
+                                  item['fullAddress'] ?? 'Неизвестно',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w500),
+                                ),
+                                subtitle: Text(
+                                  item['displayName'] ?? '',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 13, color: Colors.grey),
+                                ),
+                                onTap: () {
+                                  // При клике летим на точку
+                                  _moveToPosition(
+                                      LatLng(item['lat'], item['lng']));
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                    ],
                   ),
+                ),
               ],
             ),
           ),
@@ -269,43 +311,52 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
               backgroundColor: Colors.white,
               onPressed: _locateUser,
               child: _isLoadingLocation
-                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange))
+                  ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.orange))
                   : const Icon(Icons.my_location, color: Colors.black87),
             ),
           ),
 
           // 6. НИЖНЯЯ ПАНЕЛЬ
           Positioned(
-            left: 0, right: 0, bottom: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             child: Container(
               padding: const EdgeInsets.all(24),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20, spreadRadius: 5)],
+                boxShadow: [
+                  BoxShadow(color: Colors.black12, blurRadius: 20, spreadRadius: 5)
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Выбранный адрес', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  const Text('Выбранный адрес',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)),
                   const SizedBox(height: 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Icon(Icons.location_on, color: Colors.orange, size: 28),
+                      const Icon(Icons.location_on,
+                          color: Colors.orange, size: 28),
                       const SizedBox(width: 12),
                       Expanded(
                         child: AnimatedSwitcher(
                           duration: const Duration(milliseconds: 200),
                           child: Text(
                             _addressText,
-                            key: ValueKey(_addressText), // Ключ для анимации смены текста
+                            key: ValueKey(_addressText),
                             style: const TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87
-                            ),
+                                color: Colors.black87),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -317,7 +368,8 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: (_isResolvingAddress || _selectedAddressData == null)
+                      onPressed: (_isResolvingAddress ||
+                          _selectedAddressData == null)
                           ? null
                           : () {
                         Navigator.pop(context, _selectedAddressData);
@@ -326,12 +378,19 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                         backgroundColor: Colors.orange,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
                       child: _isResolvingAddress
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Text('Подтвердить адрес', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                          : const Text('Подтвердить адрес',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],

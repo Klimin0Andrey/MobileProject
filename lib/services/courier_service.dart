@@ -1,20 +1,61 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:linux_test2/data/models/order.dart' as app_order;
 import 'package:linux_test2/services/notification_service.dart';
 
 class CourierService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final NotificationService _notificationService = NotificationService();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
+  // --- Управление статусом ---
+
+  /// Сохранить статус онлайн/офлайн курьера
+  Future<void> setCourierOnlineStatus(String courierId, bool isOnline) async {
+    try {
+      await _firestore.collection('users').doc(courierId).update({
+        'isOnline': isOnline,
+        'lastOnlineStatusUpdate': FieldValue.serverTimestamp(),
+      });
+      print('✅ Статус курьера обновлен: ${isOnline ? "онлайн" : "офлайн"}');
+    } catch (e) {
+      print('❌ Ошибка сохранения статуса курьера: $e');
+      // Если документа нет, можно попробовать создать (редкий кейс)
+      // rethrow;
+    }
+  }
+
+  /// Загрузить статус онлайн/офлайн курьера
+  Future<bool> getCourierOnlineStatus(String courierId) async {
+    try {
+      final doc = await _firestore.collection('users').doc(courierId).get();
+      if (doc.exists) {
+        final data = doc.data();
+        return data?['isOnline'] as bool? ?? false;
+      }
+      return false;
+    } catch (e) {
+      print('❌ Ошибка загрузки статуса курьера: $e');
+      return false;
+    }
+  }
+
+  // --- Заказы ---
 
   /// Получить доступные заказы (готовые к доставке, статус = processing)
-  Stream<List<app_order.Order>> getAvailableOrders() {
+  /// Теперь учитывает статус онлайн курьера
+  Stream<List<app_order.Order>> getAvailableOrders({bool isOnline = true}) {
+    if (!isOnline) {
+      // Если курьер офлайн, возвращаем пустой список и не слушаем базу
+      return Stream.value([]);
+    }
+
     return _firestore
         .collection('orders')
         .where('status', isEqualTo: 'processing')
         .orderBy('createdAt', descending: false) // Старые заказы первыми
         .snapshots()
         .map((snapshot) {
-      // ✅ ИСПРАВЛЕНО: Фильтруем на клиенте заказы без курьера
       return snapshot.docs
           .where((doc) => doc.data()['courierId'] == null) // Только заказы без курьера
           .map((doc) => app_order.Order.fromMap(doc.data(), doc.id))
@@ -37,10 +78,11 @@ class CourierService {
     });
   }
 
+  // --- Действия с заказами ---
+
   /// Принять заказ (назначить курьера и изменить статус на delivering)
   Future<void> acceptOrder(String orderId, String courierId) async {
     try {
-      // ✅ ИСПРАВЛЕНО: Получаем заказ для получения userId
       final orderDoc = await _firestore.collection('orders').doc(orderId).get();
       if (!orderDoc.exists) {
         throw Exception('Заказ не найден');
@@ -56,9 +98,9 @@ class CourierService {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      // ✅ ИСПРАВЛЕНО: Отправляем уведомление клиенту с userId
+      // Отправляем уведомление клиенту
       await _notificationService.sendOrderStatusNotification(
-        userId: userId, // ✅ ДОБАВЛЕНО
+        userId: userId,
         orderId: orderId,
         title: 'Заказ в доставке',
         body: 'Курьер принял ваш заказ и везет его вам.',
@@ -88,14 +130,12 @@ class CourierService {
       });
     } catch (e) {
       print('❌ Ошибка обновления позиции курьера: $e');
-      // Не пробрасываем ошибку, чтобы не прерывать обновление позиции
     }
   }
 
   /// Завершить заказ (статус = completed)
   Future<void> completeOrder(String orderId) async {
     try {
-      // ✅ ИСПРАВЛЕНО: Получаем заказ для получения userId
       final orderDoc = await _firestore.collection('orders').doc(orderId).get();
       if (!orderDoc.exists) {
         throw Exception('Заказ не найден');
@@ -108,13 +148,12 @@ class CourierService {
         'status': app_order.OrderStatus.completed.toString().split('.').last,
         'completedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        // Очищаем позицию курьера после завершения
         'courierLocation': FieldValue.delete(),
       });
 
-      // ✅ ИСПРАВЛЕНО: Отправляем уведомление клиенту с userId
+      // Отправляем уведомление клиенту
       await _notificationService.sendOrderStatusNotification(
-        userId: userId, // ✅ ДОБАВЛЕНО
+        userId: userId,
         orderId: orderId,
         title: 'Заказ доставлен',
         body: 'Ваш заказ успешно доставлен. Спасибо за заказ!',
@@ -127,27 +166,9 @@ class CourierService {
     }
   }
 
-  /// Получить информацию о заказе (для детального просмотра)
-  Future<app_order.Order?> getOrderById(String orderId) async {
-    try {
-      final doc = await _firestore.collection('orders').doc(orderId).get();
-      if (doc.exists) {
-        return app_order.Order.fromMap(doc.data()!, doc.id);
-      }
-      return null;
-    } catch (e) {
-      print('❌ Ошибка получения заказа: $e');
-      return null;
-    }
-  }
-
   /// Получить поток обновлений конкретного заказа (для отслеживания)
   Stream<app_order.Order?> watchOrder(String orderId) {
-    return _firestore
-        .collection('orders')
-        .doc(orderId)
-        .snapshots()
-        .map((snapshot) {
+    return _firestore.collection('orders').doc(orderId).snapshots().map((snapshot) {
       if (snapshot.exists) {
         return app_order.Order.fromMap(snapshot.data()!, snapshot.id);
       }
@@ -155,6 +176,4 @@ class CourierService {
     });
   }
 }
-
-
 

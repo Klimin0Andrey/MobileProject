@@ -14,29 +14,32 @@ class AdminBroadcastScreen extends StatefulWidget {
 class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
-  final _searchController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  // Сервисы
   final _adminUsersService = AdminUsersService();
 
+  // Состояние
   bool _isSending = false;
   int _sentCount = 0;
   int _totalUsers = 0;
-  bool _sendToAll = true; // ✅ ДОБАВЛЕНО: Режим отправки
-  AppUser? _selectedUser; // ✅ ДОБАВЛЕНО: Выбранный пользователь
-  String _searchQuery = ''; // ✅ ДОБАВЛЕНО: Поисковый запрос
+  bool _sendToAll = true; // Режим отправки: true = всем, false = одному
+  AppUser? _selectedUser; // Выбранный пользователь
+  String _searchQuery = '';
 
   @override
   void dispose() {
     _titleController.dispose();
     _bodyController.dispose();
-    _searchController.dispose();
     super.dispose();
   }
+
+  // --- ЛОГИКА ОТПРАВКИ ---
 
   Future<void> _sendBroadcast() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // ✅ ДОБАВЛЕНО: Проверка выбора пользователя
+    // Проверка выбора пользователя
     if (!_sendToAll && _selectedUser == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -59,11 +62,9 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
       List<String> userIds = [];
 
       if (_sendToAll) {
-        // ✅ Режим отправки всем пользователям
-        final usersSnapshot = await firestore
-            .collection('users')
-            .where('fcmToken', isNotEqualTo: null)
-            .get();
+        // 1. Режим отправки ВСЕМ
+        // Берем всех пользователей (даже без токена, чтобы сохранить историю в БД)
+        final usersSnapshot = await firestore.collection('users').get();
 
         userIds = usersSnapshot.docs.map((doc) => doc.id).toList();
         _totalUsers = userIds.length;
@@ -73,7 +74,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
             setState(() => _isSending = false);
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Нет пользователей с токенами для отправки'),
+                content: Text('Нет пользователей в базе данных'),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -81,42 +82,25 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
           return;
         }
 
-        // Подписываем на тему для массовой рассылки
+        // Подписываем админа (себя) или отправляем пуш в топик
         await notificationService.subscribeToTopic('all_users');
       } else {
-        // ✅ Режим отправки конкретному пользователю
+        // 2. Режим отправки КОНКРЕТНОМУ
         if (_selectedUser == null) return;
-
-        // Проверяем наличие FCM токена у выбранного пользователя
-        final userDoc = await firestore.collection('users').doc(_selectedUser!.uid).get();
-        final userData = userDoc.data();
-
-        if (userData == null || userData['fcmToken'] == null) {
-          if (mounted) {
-            setState(() => _isSending = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('У выбранного пользователя нет FCM токена'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-          return;
-        }
-
         userIds = [_selectedUser!.uid];
         _totalUsers = 1;
       }
 
-      // Сохраняем уведомление в Firestore для каждого пользователя
+      // Сохраняем уведомления в Firestore (Batch Write)
+      // Firestore лимит: 500 операций за раз. Будем писать пачками.
       WriteBatch batch = firestore.batch();
       int count = 0;
+      int batchCount = 0; // Счетчик внутри текущего батча
 
       for (var userId in userIds) {
         final userRef = firestore.collection('users').doc(userId);
-
-        // Сохраняем уведомление в подколлекцию пользователя
         final notificationRef = userRef.collection('notifications').doc();
+
         batch.set(notificationRef, {
           'title': _titleController.text.trim(),
           'body': _bodyController.text.trim(),
@@ -126,17 +110,22 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
         });
 
         count++;
-        if (count % 10 == 0) {
+        batchCount++;
+
+        // Если набралось 400 операций, отправляем и очищаем батч
+        if (batchCount >= 400) {
           await batch.commit();
-          batch = firestore.batch();
+          batch = firestore.batch(); // ✅ ИСПРАВЛЕНО: Создаем новый батч
+          batchCount = 0;
+
           if (mounted) {
             setState(() => _sentCount = count);
           }
         }
       }
 
-      // Коммитим оставшиеся
-      if (count % 10 != 0) {
+      // Коммитим остаток
+      if (batchCount > 0) {
         await batch.commit();
       }
 
@@ -157,14 +146,13 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
           ),
         );
 
-        // Очищаем форму
+        // Очистка
         _titleController.clear();
         _bodyController.clear();
         if (!_sendToAll) {
           setState(() {
             _selectedUser = null;
             _searchQuery = '';
-            _searchController.clear();
           });
         }
       }
@@ -181,14 +169,15 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
     }
   }
 
-  // ✅ ДОБАВЛЕНО: Метод для выбора пользователя
+  // Метод вызова диалога
   Future<void> _selectUser() async {
     final selected = await showDialog<AppUser>(
       context: context,
       builder: (context) => _UserSelectionDialog(
         searchQuery: _searchQuery,
         onSearchChanged: (query) {
-          setState(() => _searchQuery = query);
+          // Обновляем query локально в виджете, если нужно сохранить состояние
+          _searchQuery = query;
         },
       ),
     );
@@ -197,13 +186,24 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
       setState(() {
         _selectedUser = selected;
         _searchQuery = '';
-        _searchController.clear();
       });
     }
   }
 
+  // --- ИНТЕРФЕЙС (UI) ---
+
   @override
   Widget build(BuildContext context) {
+    // Определение темы
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Цветовая палитра
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
+    final cardColor = isDark ? Colors.grey[850] : Colors.orange.shade50;
+    final inputFillColor = isDark ? Colors.grey[900] : Colors.white;
+    final borderColor = isDark ? Colors.grey[700]! : Colors.grey.shade300;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Рассылка уведомлений'),
@@ -217,9 +217,13 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ✅ ДОБАВЛЕНО: Переключатель режима отправки
+              // 1. Карточка выбора режима
               Card(
-                color: Colors.orange.shade50,
+                color: cardColor,
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -229,43 +233,46 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                         'Кому отправить?',
                         style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
+                          color: textColor,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Row(
+                      Column(
                         children: [
-                          Expanded(
-                            child: RadioListTile<bool>(
-                              title: const Text('Всем пользователям'),
-                              value: true,
-                              groupValue: _sendToAll,
-                              onChanged: _isSending
-                                  ? null
-                                  : (value) {
-                                setState(() {
-                                  _sendToAll = value ?? true;
-                                  _selectedUser = null;
-                                  _searchQuery = '';
-                                  _searchController.clear();
-                                });
-                              },
-                              contentPadding: EdgeInsets.zero,
+                          RadioListTile<bool>(
+                            title: Text(
+                              'Всем пользователям',
+                              style: TextStyle(color: textColor),
                             ),
+                            value: true,
+                            groupValue: _sendToAll,
+                            activeColor: Colors.orange,
+                            onChanged: _isSending
+                                ? null
+                                : (value) {
+                              setState(() {
+                                _sendToAll = value ?? true;
+                                _selectedUser = null;
+                              });
+                            },
+                            contentPadding: EdgeInsets.zero,
                           ),
-                          Expanded(
-                            child: RadioListTile<bool>(
-                              title: const Text('Конкретному пользователю'),
-                              value: false,
-                              groupValue: _sendToAll,
-                              onChanged: _isSending
-                                  ? null
-                                  : (value) {
-                                setState(() {
-                                  _sendToAll = value ?? false;
-                                });
-                              },
-                              contentPadding: EdgeInsets.zero,
+                          RadioListTile<bool>(
+                            title: Text(
+                              'Конкретному пользователю',
+                              style: TextStyle(color: textColor),
                             ),
+                            value: false,
+                            groupValue: _sendToAll,
+                            activeColor: Colors.orange,
+                            onChanged: _isSending
+                                ? null
+                                : (value) {
+                              setState(() {
+                                _sendToAll = value ?? false;
+                              });
+                            },
+                            contentPadding: EdgeInsets.zero,
                           ),
                         ],
                       ),
@@ -275,22 +282,25 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
               ),
               const SizedBox(height: 16),
 
-              // ✅ ДОБАВЛЕНО: Выбор пользователя (если режим "конкретному")
+              // 2. Блок выбора пользователя (только если не "Всем")
               if (!_sendToAll) ...[
                 Text(
                   'Выберите пользователя',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
+                    color: textColor,
                   ),
                 ),
                 const SizedBox(height: 8),
                 InkWell(
                   onTap: _isSending ? null : _selectUser,
+                  borderRadius: BorderRadius.circular(12),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey.shade300),
+                      border: Border.all(color: borderColor),
                       borderRadius: BorderRadius.circular(12),
+                      color: inputFillColor,
                     ),
                     child: Row(
                       children: [
@@ -298,7 +308,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                           Icons.person,
                           color: _selectedUser != null
                               ? Colors.orange
-                              : Colors.grey,
+                              : subTextColor,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -308,16 +318,17 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                             children: [
                               Text(
                                 _selectedUser!.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
+                                  color: textColor,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 _selectedUser!.email,
                                 style: TextStyle(
-                                  color: Colors.grey.shade600,
+                                  color: subTextColor,
                                   fontSize: 14,
                                 ),
                               ),
@@ -326,7 +337,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                                 Text(
                                   _selectedUser!.phone,
                                   style: TextStyle(
-                                    color: Colors.grey.shade600,
+                                    color: subTextColor,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -336,13 +347,14 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                               : Text(
                             'Нажмите для выбора пользователя',
                             style: TextStyle(
-                              color: Colors.grey.shade600,
+                              color: subTextColor,
+                              fontSize: 16,
                             ),
                           ),
                         ),
                         if (_selectedUser != null)
                           IconButton(
-                            icon: const Icon(Icons.close),
+                            icon: Icon(Icons.close, color: subTextColor),
                             onPressed: _isSending
                                 ? null
                                 : () {
@@ -352,7 +364,8 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                             },
                             tooltip: 'Очистить выбор',
                           ),
-                        const Icon(Icons.arrow_forward_ios, size: 16),
+                        Icon(Icons.arrow_forward_ios,
+                            size: 16, color: subTextColor),
                       ],
                     ),
                   ),
@@ -360,22 +373,34 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                 const SizedBox(height: 24),
               ],
 
-              // Информационная карточка
+              // 3. Инфо карточка
               Card(
-                color: Colors.blue.shade50,
+                color: isDark
+                    ? Colors.blue.shade900.withOpacity(0.4)
+                    : Colors.blue.shade50,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, color: Colors.blue.shade700),
+                      Icon(
+                        Icons.info_outline,
+                        color: isDark
+                            ? Colors.blue.shade200
+                            : Colors.blue.shade700,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
                           _sendToAll
                               ? 'Уведомление будет отправлено всем пользователям приложения'
-                              : 'Уведомление будет отправлено выбранному пользователю',
+                              : 'Уведомление будет отправлено только выбранному пользователю',
                           style: TextStyle(
-                            color: Colors.blue.shade900,
+                            color: isDark
+                                ? Colors.blue.shade100
+                                : Colors.blue.shade900,
                             fontSize: 14,
                           ),
                         ),
@@ -386,29 +411,39 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Заголовок
+              // 4. Поле Заголовка
               Text(
                 'Заголовок',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: textColor,
                 ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _titleController,
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
                   hintText: 'Введите заголовок уведомления',
+                  hintStyle: TextStyle(color: subTextColor),
+                  filled: true,
+                  fillColor: inputFillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: borderColor),
                   ),
-                  prefixIcon: const Icon(Icons.title),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: borderColor),
+                  ),
+                  prefixIcon: const Icon(Icons.title, color: Colors.orange),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Введите заголовок';
                   }
                   if (value.trim().length > 100) {
-                    return 'Заголовок слишком длинный (макс. 100 символов)';
+                    return 'Макс. 100 символов';
                   }
                   return null;
                 },
@@ -416,22 +451,32 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Текст сообщения
+              // 5. Поле Текста
               Text(
                 'Текст сообщения',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: textColor,
                 ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _bodyController,
+                style: TextStyle(color: textColor),
                 decoration: InputDecoration(
                   hintText: 'Введите текст уведомления',
+                  hintStyle: TextStyle(color: subTextColor),
+                  filled: true,
+                  fillColor: inputFillColor,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: borderColor),
                   ),
-                  prefixIcon: const Icon(Icons.message),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: borderColor),
+                  ),
+                  prefixIcon: const Icon(Icons.message, color: Colors.orange),
                 ),
                 maxLines: 5,
                 validator: (value) {
@@ -439,7 +484,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                     return 'Введите текст сообщения';
                   }
                   if (value.trim().length > 500) {
-                    return 'Текст слишком длинный (макс. 500 символов)';
+                    return 'Макс. 500 символов';
                   }
                   return null;
                 },
@@ -447,22 +492,23 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Прогресс отправки
+              // 6. Индикатор прогресса
               if (_isSending) ...[
                 LinearProgressIndicator(
                   value: _totalUsers > 0 ? _sentCount / _totalUsers : 0,
                   backgroundColor: Colors.grey.shade300,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.orange),
+                  valueColor:
+                  const AlwaysStoppedAnimation<Color>(Colors.orange),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Отправлено: $_sentCount / $_totalUsers',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: subTextColor),
                 ),
                 const SizedBox(height: 24),
               ],
 
-              // Кнопка отправки
+              // 7. Кнопка отправки
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -483,6 +529,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                         : (_sendToAll
                         ? 'Отправить всем'
                         : 'Отправить пользователю'),
+                    style: const TextStyle(fontSize: 16),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
@@ -491,6 +538,7 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
+                    elevation: 3,
                   ),
                 ),
               ),
@@ -502,7 +550,8 @@ class _AdminBroadcastScreenState extends State<AdminBroadcastScreen> {
   }
 }
 
-// ✅ ДОБАВЛЕНО: Диалог выбора пользователя
+// --- ДИАЛОГ ВЫБОРА ПОЛЬЗОВАТЕЛЯ ---
+
 class _UserSelectionDialog extends StatefulWidget {
   final String searchQuery;
   final ValueChanged<String> onSearchChanged;
@@ -519,48 +568,59 @@ class _UserSelectionDialog extends StatefulWidget {
 class _UserSelectionDialogState extends State<_UserSelectionDialog> {
   final _searchController = TextEditingController();
   final _adminUsersService = AdminUsersService();
+  String _currentSearchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _searchController.text = widget.searchQuery;
+    _currentSearchQuery = widget.searchQuery;
+    _searchController.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     super.dispose();
   }
 
+  void _onSearchChanged() {
+    setState(() {
+      _currentSearchQuery = _searchController.text;
+    });
+    widget.onSearchChanged(_searchController.text);
+  }
+
   String _getRoleLabel(String role) {
     switch (role) {
-      case 'admin':
-        return 'Администратор';
-      case 'courier':
-        return 'Курьер';
-      case 'customer':
-        return 'Клиент';
-      default:
-        return role;
+      case 'admin': return 'Админ';
+      case 'courier': return 'Курьер';
+      case 'customer': return 'Клиент';
+      default: return role;
     }
   }
 
   Color _getRoleColor(String role) {
     switch (role) {
-      case 'admin':
-        return Colors.red;
-      case 'courier':
-        return Colors.blue;
-      case 'customer':
-        return Colors.green;
-      default:
-        return Colors.grey;
+      case 'admin': return Colors.red;
+      case 'courier': return Colors.blue;
+      case 'customer': return Colors.green;
+      default: return Colors.grey;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Цвета для диалога
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final hintColor = isDark ? Colors.grey[400] : Colors.grey[600];
+    final inputFillColor = isDark ? Colors.grey[800] : Colors.white;
+
     return Dialog(
+      backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: double.infinity,
         constraints: const BoxConstraints(maxHeight: 600),
@@ -574,16 +634,17 @@ class _UserSelectionDialogState extends State<_UserSelectionDialog> {
                 children: [
                   Row(
                     children: [
-                      const Text(
+                      Text(
                         'Выберите пользователя',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: textColor,
                         ),
                       ),
                       const Spacer(),
                       IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: Icon(Icons.close, color: textColor),
                         onPressed: () => Navigator.pop(context),
                       ),
                     ],
@@ -591,45 +652,47 @@ class _UserSelectionDialogState extends State<_UserSelectionDialog> {
                   const SizedBox(height: 16),
                   TextField(
                     controller: _searchController,
+                    style: TextStyle(color: textColor),
                     decoration: InputDecoration(
-                      hintText: 'Поиск по имени, email или телефону',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: _searchController.text.isNotEmpty
+                      hintText: 'Поиск (имя, email, телефон)',
+                      hintStyle: TextStyle(color: hintColor),
+                      prefixIcon: const Icon(Icons.search, color: Colors.orange),
+                      filled: true,
+                      fillColor: inputFillColor,
+                      suffixIcon: _currentSearchQuery.isNotEmpty
                           ? IconButton(
-                        icon: const Icon(Icons.clear),
+                        icon: Icon(Icons.clear, color: hintColor),
                         onPressed: () {
                           _searchController.clear();
-                          widget.onSearchChanged('');
-                          setState(() {});
                         },
                       )
                           : null,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
                       ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                     ),
                     onChanged: (value) {
-                      widget.onSearchChanged(value);
-                      setState(() {});
+                      // Изменения обрабатываются через listener
                     },
                   ),
                 ],
               ),
             ),
-            const Divider(height: 1),
+            Divider(height: 1, color: isDark ? Colors.grey[800] : Colors.grey[300]),
+
             // Список пользователей
             Expanded(
               child: StreamBuilder<List<AppUser>>(
-                stream: _adminUsersService.searchUsers(_searchController.text),
+                stream: _adminUsersService.searchUsers(_currentSearchQuery),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator(color: Colors.orange));
                   }
 
                   if (snapshot.hasError) {
-                    return Center(
-                      child: Text('Ошибка: ${snapshot.error}'),
-                    );
+                    return Center(child: Text('Ошибка: ${snapshot.error}', style: TextStyle(color: textColor)));
                   }
 
                   final users = snapshot.data ?? [];
@@ -639,20 +702,13 @@ class _UserSelectionDialogState extends State<_UserSelectionDialog> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.person_off,
-                            size: 64,
-                            color: Colors.grey.shade400,
-                          ),
+                          Icon(Icons.person_off, size: 64, color: Colors.grey.shade400),
                           const SizedBox(height: 16),
                           Text(
-                            _searchController.text.isEmpty
+                            _currentSearchQuery.isEmpty
                                 ? 'Нет пользователей'
                                 : 'Пользователи не найдены',
-                            style: TextStyle(
-                              color: Colors.grey.shade600,
-                              fontSize: 16,
-                            ),
+                            style: TextStyle(color: hintColor, fontSize: 16),
                           ),
                         ],
                       ),
@@ -677,13 +733,14 @@ class _UserSelectionDialogState extends State<_UserSelectionDialog> {
                         ),
                         title: Text(
                           user.name,
-                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(fontWeight: FontWeight.bold, color: textColor),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(user.email),
-                            if (user.phone.isNotEmpty) Text(user.phone),
+                            Text(user.email, style: TextStyle(color: hintColor)),
+                            if (user.phone.isNotEmpty)
+                              Text(user.phone, style: TextStyle(color: hintColor, fontSize: 12)),
                           ],
                         ),
                         trailing: Chip(
@@ -695,6 +752,7 @@ class _UserSelectionDialogState extends State<_UserSelectionDialog> {
                           labelStyle: TextStyle(
                             color: _getRoleColor(user.role),
                           ),
+                          side: BorderSide.none,
                         ),
                         onTap: () => Navigator.pop(context, user),
                       );

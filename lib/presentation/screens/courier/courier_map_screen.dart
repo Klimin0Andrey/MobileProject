@@ -157,20 +157,48 @@ class _CourierMapScreenState extends State<CourierMapScreen> {
   }
 
   Future<void> _completeOrder() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Завершить заказ?'),
-        content: const Text('Вы уверены, что доставили заказ клиенту?'),
+        // Адаптивный фон диалога
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: Text(
+          'Завершить заказ?',
+          style: TextStyle(
+            color: isDark ? Colors.white : Colors.black,
+          ),
+        ),
+        content: Text(
+          'Вы уверены, что доставили заказ клиенту?',
+          style: TextStyle(
+            color: isDark ? Colors.grey[300] : Colors.black87,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
+            child: Text(
+              'Отмена',
+              style: TextStyle(
+                color: isDark ? Colors.orange : Colors.orange, // Оранжевый всегда виден
+              ),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Завершить'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange, // Оранжевая кнопка
+              foregroundColor: Colors.white, // ✅ Белый текст (для иконки и рипл-эффекта)
+            ),
+            child: const Text(
+              'Завершить',
+              style: TextStyle(
+                color: Colors.white, // ✅ ПРИНУДИТЕЛЬНО БЕЛЫЙ ЦВЕТ ТЕКСТА
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -213,6 +241,10 @@ class _CourierMapScreenState extends State<CourierMapScreen> {
     final deliveryPoint = deliveryLat != null && deliveryLng != null
         ? LatLng(deliveryLat, deliveryLng)
         : null;
+    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final backgroundColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
     return Scaffold(
       appBar: AppBar(
@@ -284,16 +316,20 @@ class _CourierMapScreenState extends State<CourierMapScreen> {
 
           // ИНДИКАТОР ЗАГРУЗКИ МАРШРУТА
           if (_isLoadingRoute)
-            const Center(
+            Center(
               child: Card(
+                color: backgroundColor,
                 child: Padding(
-                  padding: EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(),
-                      SizedBox(width: 16),
-                      Text('Расчет маршрута...'),
+                      const CircularProgressIndicator(),
+                      const SizedBox(width: 16),
+                      Text(
+                        'Расчет маршрута...',
+                        style: TextStyle(color: textColor),
+                      ),
                     ],
                   ),
                 ),
@@ -308,11 +344,11 @@ class _CourierMapScreenState extends State<CourierMapScreen> {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: backgroundColor,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
+                    color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.2),
                     blurRadius: 10,
                     spreadRadius: 2,
                   ),
@@ -330,9 +366,10 @@ class _CourierMapScreenState extends State<CourierMapScreen> {
                       Expanded(
                         child: Text(
                           widget.order.deliveryAddressString,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
+                            color: textColor,
                           ),
                         ),
                       ),
@@ -347,7 +384,10 @@ class _CourierMapScreenState extends State<CourierMapScreen> {
                       const SizedBox(width: 8),
                       Text(
                         widget.order.phone,
-                        style: const TextStyle(fontSize: 14),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: textColor,
+                        ),
                       ),
                     ],
                   ),

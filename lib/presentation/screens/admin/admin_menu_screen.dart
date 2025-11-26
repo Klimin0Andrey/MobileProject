@@ -962,35 +962,65 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
   }
 
   Widget _buildDishCard(BuildContext context, Dish dish) {
+    // ✅ Определяем тему
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // ✅ Цвета для доступного/недоступного состояния в разных темах
+    final cardColor = dish.isAvailable
+        ? Theme.of(context).cardColor
+        : (isDark ? Colors.grey.shade900 : Colors.grey.shade200); // Темнее для темной темы
+
+    final textColor = dish.isAvailable
+        ? (isDark ? Colors.white : Colors.black87)
+        : (isDark ? Colors.grey.shade500 : Colors.grey.shade600); // Серый текст для недоступных
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      color: dish.isAvailable ? null : Colors.grey.shade200,
+      color: cardColor,
+      elevation: dish.isAvailable ? 2 : 0, // Убираем тень у недоступных
       child: ListTile(
+        contentPadding: const EdgeInsets.all(8),
         leading: dish.imageUrl.isNotEmpty
             ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: UniversalImage(
-                  imageUrl: dish.imageUrl,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                  errorWidget: Container(
-                    width: 60,
-                    height: 60,
-                    color: Colors.grey.shade300,
-                    child: const Icon(Icons.fastfood),
-                  ),
-                ),
-              )
-            : Container(
+          borderRadius: BorderRadius.circular(8),
+          child: ColorFiltered(
+            // ✅ Делаем картинку ч/б, если блюдо недоступно
+            colorFilter: dish.isAvailable
+                ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
+                : const ColorFilter.matrix(<double>[
+              0.2126, 0.7152, 0.0722, 0, 0,
+              0.2126, 0.7152, 0.0722, 0, 0,
+              0.2126, 0.7152, 0.0722, 0, 0,
+              0,      0,      0,      1, 0,
+            ]),
+            child: UniversalImage(
+              imageUrl: dish.imageUrl,
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+              errorWidget: Container(
                 width: 60,
                 height: 60,
-                color: Colors.grey.shade300,
+                color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
                 child: const Icon(Icons.fastfood),
               ),
+            ),
+          ),
+        )
+            : Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Icon(Icons.fastfood),
+        ),
         title: Text(
           dish.name,
           style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.bold,
             decoration: dish.isAvailable ? null : TextDecoration.lineThrough,
           ),
         ),
@@ -1001,13 +1031,17 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
               dish.description,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: isDark ? Colors.grey.shade400 : Colors.grey.shade700,
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               '${dish.price.toStringAsFixed(2)} ₽',
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Colors.green,
+                color: dish.isAvailable ? Colors.green : Colors.grey,
               ),
             ),
           ],
@@ -1017,10 +1051,14 @@ class _RestaurantDishesScreenState extends State<RestaurantDishesScreen> {
           children: [
             Switch(
               value: dish.isAvailable,
-              onChanged: (value) =>
-                  _toggleDishAvailability(context, dish, value),
+              activeColor: Colors.orange,
+              // Цвет трека в выключенном состоянии
+              inactiveTrackColor: isDark ? Colors.grey.shade700 : Colors.grey.shade400,
+              inactiveThumbColor: Colors.grey.shade50,
+              onChanged: (value) => _toggleDishAvailability(context, dish, value),
             ),
             PopupMenuButton(
+              icon: Icon(Icons.more_vert, color: isDark ? Colors.grey.shade400 : Colors.grey),
               itemBuilder: (context) => [
                 const PopupMenuItem(
                   value: 'edit',

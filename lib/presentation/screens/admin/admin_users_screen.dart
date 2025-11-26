@@ -38,14 +38,12 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
 
   @override
   Widget build(BuildContext context) {
-    // ✅ ДОБАВЛЕНО: Определяем цвета текста в зависимости от темы
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Пользователи'),
-        // ✅ УБРАНО: Кнопка создания сотрудника
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: Colors.white,
@@ -59,7 +57,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
       ),
       body: Column(
         children: [
-          // ✅ УЛУЧШЕН: Поиск с адаптацией под тему
+          // Поиск
           Padding(
             padding: const EdgeInsets.all(12),
             child: TextField(
@@ -151,7 +149,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
   }
 
   Widget _buildUserCard(AppUser user, bool isCustomers) {
-    // ✅ ДОБАВЛЕНО: Цвета для темной темы
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : Colors.black87;
     final subTextColor = isDark ? Colors.grey[400] : Colors.grey[600];
@@ -180,10 +177,14 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
                   width: 48,
                   height: 48,
                   fit: BoxFit.cover,
-                  errorWidget: Center(child: Text(user.initials, style: TextStyle(color: Colors.orange.shade800))),
+                  errorWidget: Center(
+                      child: Text(user.initials,
+                          style: TextStyle(color: Colors.orange.shade800))),
                 ),
               )
-                  : Text(user.initials, style: TextStyle(color: Colors.orange.shade800, fontWeight: FontWeight.bold)),
+                  : Text(user.initials,
+                  style: TextStyle(
+                      color: Colors.orange.shade800, fontWeight: FontWeight.bold)),
             ),
             title: Row(
               children: [
@@ -207,7 +208,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
                     ),
                     child: const Text(
                       'BAN',
-                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                     ),
                   ),
               ],
@@ -227,11 +229,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
                       decoration: BoxDecoration(
                         color: _getRoleColor(user.role).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: _getRoleColor(user.role).withOpacity(0.5)),
+                        border: Border.all(
+                            color: _getRoleColor(user.role).withOpacity(0.5)),
                       ),
                       child: Text(
                         _getRoleText(user.role),
-                        style: TextStyle(fontSize: 11, color: _getRoleColor(user.role), fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: _getRoleColor(user.role),
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                     if (isCustomers) ...[
@@ -255,6 +261,22 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
             trailing: PopupMenuButton(
               icon: Icon(Icons.more_vert, color: subTextColor),
               itemBuilder: (context) => [
+                // ✅ ДОБАВЛЕНО: Пункт меню "Изменить роль"
+                PopupMenuItem(
+                  value: 'changeRole',
+                  child: Row(
+                    children: const [
+                      Icon(
+                        Icons.manage_accounts,
+                        size: 20,
+                        color: Colors.blue,
+                      ),
+                      SizedBox(width: 12),
+                      Text('Изменить роль'),
+                    ],
+                  ),
+                ),
+                // Пункт меню "Бан/Разбан"
                 PopupMenuItem(
                   value: isBanned ? 'unban' : 'ban',
                   child: Row(
@@ -276,7 +298,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
                 ),
               ],
               onSelected: (value) {
-                if (value == 'ban') {
+                if (value == 'changeRole') {
+                  _showChangeRoleDialog(user); // ✅ Вызов метода смены роли
+                } else if (value == 'ban') {
                   _banUser(user);
                 } else if (value == 'unban') {
                   _unbanUser(user);
@@ -289,12 +313,15 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
     );
   }
 
-  // ✅ ДОБАВЛЕНО: Метод для получения цвета роли
+  // Метод для получения цвета роли
   Color _getRoleColor(String role) {
     switch (role) {
-      case 'admin': return Colors.red;
-      case 'courier': return Colors.blue;
-      default: return Colors.green;
+      case 'admin':
+        return Colors.red;
+      case 'courier':
+        return Colors.blue;
+      default:
+        return Colors.green;
     }
   }
 
@@ -317,7 +344,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
         title: const Text('Блокировка'),
         content: Text('Забанить пользователя "${user.name}"?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Отмена')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Отмена')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -364,44 +393,49 @@ class _AdminUsersScreenState extends State<AdminUsersScreen>
     }
   }
 
+  // Метод смены роли
   Future<void> _showChangeRoleDialog(AppUser user) async {
     String? selectedRole = user.role;
     final result = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Изменить роль'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RadioListTile<String>(
-              title: const Text('Клиент'),
-              value: 'customer',
-              groupValue: selectedRole,
-              onChanged: (v) {
-                selectedRole = v;
-                Navigator.pop(context, v);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Курьер'),
-              value: 'courier',
-              groupValue: selectedRole,
-              onChanged: (v) {
-                selectedRole = v;
-                Navigator.pop(context, v);
-              },
-            ),
-            RadioListTile<String>(
-              title: const Text('Админ'),
-              value: 'admin',
-              groupValue: selectedRole,
-              onChanged: (v) {
-                selectedRole = v;
-                Navigator.pop(context, v);
-              },
-            ),
-          ],
-        ),
+      builder: (context) => StatefulBuilder( // ✅ StatefulBuilder для обновления радиокнопок
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Изменить роль'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  RadioListTile<String>(
+                    title: const Text('Клиент'),
+                    value: 'customer',
+                    groupValue: selectedRole,
+                    onChanged: (v) {
+                      setState(() => selectedRole = v);
+                      Navigator.pop(context, v);
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('Курьер'),
+                    value: 'courier',
+                    groupValue: selectedRole,
+                    onChanged: (v) {
+                      setState(() => selectedRole = v);
+                      Navigator.pop(context, v);
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('Админ'),
+                    value: 'admin',
+                    groupValue: selectedRole,
+                    onChanged: (v) {
+                      setState(() => selectedRole = v);
+                      Navigator.pop(context, v);
+                    },
+                  ),
+                ],
+              ),
+            );
+          }
       ),
     );
 

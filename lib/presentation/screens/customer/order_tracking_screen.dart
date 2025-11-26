@@ -76,13 +76,16 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
     final deliveryPoint = deliveryLat != null && deliveryLng != null
         ? LatLng(deliveryLat, deliveryLng)
         : null;
+    
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black;
+    final backgroundColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
 
     return Scaffold(
       appBar: AppBar(
         title: Text('Отслеживание заказа #${widget.order.id?.substring(0, 8) ?? 'N/A'}'),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
-        // ✅ Кнопка "Назад" уже есть по умолчанию в AppBar
       ),
       body: Stack(
         children: [
@@ -154,11 +157,11 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: backgroundColor,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.2),
+                    color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.2),
                     blurRadius: 10,
                     spreadRadius: 2,
                   ),
@@ -196,7 +199,10 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                       Expanded(
                         child: Text(
                           widget.order.deliveryAddressString,
-                          style: const TextStyle(fontSize: 14),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: textColor,
+                          ),
                         ),
                       ),
                     ],
@@ -213,7 +219,7 @@ class _OrderTrackingScreenState extends State<OrderTrackingScreen> {
                           'Курьер в пути',
                           style: TextStyle(
                             fontSize: 14,
-                            color: Colors.grey.shade700,
+                            color: isDark ? Colors.grey[300] : Colors.grey.shade700,
                           ),
                         ),
                       ],

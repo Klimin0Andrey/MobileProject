@@ -3,13 +3,23 @@ import 'package:provider/provider.dart';
 import 'package:linux_test2/data/models/order.dart' as app_order;
 import 'package:linux_test2/data/models/user.dart';
 import 'package:linux_test2/presentation/providers/courier_provider.dart';
-import 'package:linux_test2/services/route_service.dart';
-import 'package:linux_test2/services/location_service.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:intl/intl.dart';
 
-class CourierOrdersScreen extends StatelessWidget {
+class CourierOrdersScreen extends StatefulWidget {
   const CourierOrdersScreen({super.key});
+
+  @override
+  State<CourierOrdersScreen> createState() => _CourierOrdersScreenState();
+}
+
+class _CourierOrdersScreenState extends State<CourierOrdersScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<CourierProvider>(context, listen: false).initialize();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,19 +36,49 @@ class CourierOrdersScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Доступные заказы'),
         actions: [
-          // ✅ ДОБАВЛЕНО: Переключатель онлайн/офлайн
           Consumer<CourierProvider>(
             builder: (context, provider, _) {
-              return Switch(
-                value: provider.isOnline,
-                onChanged: (value) {
-                  provider.toggleOnlineStatus();
-                },
-                activeColor: Colors.green,
+              return Row(
+                children: [
+                  Text(
+                    provider.isOnline ? 'Онлайн' : 'Офлайн',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  Switch(
+                    value: provider.isOnline,
+                    onChanged: (value) async {
+                      try {
+                        await provider.toggleOnlineStatus();
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Ошибка изменения статуса: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    // Настройки цветов свитча
+                    thumbColor: const MaterialStatePropertyAll(Colors.white),
+                    trackColor: MaterialStateProperty.resolveWith((states) {
+                      if (states.contains(MaterialState.selected)) {
+                        return Colors.white.withOpacity(0.5);
+                      }
+                      return Colors.white.withOpacity(0.2);
+                    }),
+                    trackOutlineColor: const MaterialStatePropertyAll(Colors.transparent),
+                  ),
+                  const SizedBox(width: 12),
+                ],
               );
             },
           ),
-          const SizedBox(width: 8),
         ],
       ),
       body: StreamBuilder<List<app_order.Order>>(
@@ -53,6 +93,31 @@ class CourierOrdersScreen extends StatelessWidget {
           }
 
           final orders = snapshot.data ?? [];
+
+          // Используем Consumer для реактивного обновления при смене статуса
+          final courierProviderStatus = Provider.of<CourierProvider>(context);
+
+          if (!courierProviderStatus.isOnline) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.wifi_off, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Вы сейчас офлайн',
+                    style: TextStyle(color: Colors.grey, fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Включите статус "Онлайн" сверху,\nчтобы получать заказы',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ],
+              ),
+            );
+          }
 
           if (orders.isEmpty) {
             return Center(
@@ -92,7 +157,9 @@ class CourierOrdersScreen extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: () => _showOrderDetails(context, order, courierId),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -111,26 +178,28 @@ class CourierOrdersScreen extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.green.shade100,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       '${order.totalPrice.toStringAsFixed(2)} ₽',
                       style: TextStyle(
                         color: Colors.green.shade800,
                         fontWeight: FontWeight.bold,
+                        fontSize: 14,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.location_on, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
+                  const Icon(Icons.location_on, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       order.deliveryAddressString,
@@ -144,53 +213,61 @@ class CourierOrdersScreen extends StatelessWidget {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.restaurant_menu, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
+                  const Icon(Icons.restaurant_menu, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
                   Text(
                     '${order.items.length} ${_getItemsText(order.items.length)}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                   const SizedBox(width: 16),
-                  Icon(Icons.access_time, size: 16, color: Colors.grey),
-                  const SizedBox(width: 4),
+                  const Icon(Icons.access_time, size: 18, color: Colors.grey),
+                  const SizedBox(width: 8),
                   Text(
                     DateFormat('HH:mm').format(order.createdAt.toDate()),
-                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                 ],
               ),
               if (order.comment != null && order.comment!.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: Colors.orange.shade50,
                     borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade100),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.comment, size: 16, color: Colors.blue),
+                      Icon(Icons.comment, size: 16, color: Colors.orange.shade800),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           order.comment!,
-                          style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
+                          style: TextStyle(fontSize: 13, color: Colors.orange.shade900),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
                 ),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () => _acceptOrder(context, order, courierId),
-                  icon: const Icon(Icons.check_circle),
+                  icon: const Icon(Icons.check_circle_outline),
                   label: const Text('Принять заказ'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
                   ),
                 ),
               ),
@@ -207,21 +284,40 @@ class CourierOrdersScreen extends StatelessWidget {
     return 'блюд';
   }
 
+  // ✅ ИСПРАВЛЕНО: Добавлен foregroundColor для кнопки, чтобы текст был виден
   Future<void> _acceptOrder(BuildContext context, app_order.Order order, String courierId) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Принять заказ?'),
-        content: Text('Вы уверены, что хотите принять заказ на сумму ${order.totalPrice.toStringAsFixed(2)} ₽?'),
+        // Адаптивный фон диалога
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: Text(
+          'Принять заказ?',
+          style: TextStyle(color: isDark ? Colors.white : Colors.black),
+        ),
+        content: Text(
+          'Вы уверены, что хотите принять заказ на сумму ${order.totalPrice.toStringAsFixed(2)} ₽?',
+          style: TextStyle(color: isDark ? Colors.grey[300] : Colors.black87),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Отмена'),
+            child: Text(
+              'Отмена',
+              // Серый цвет для кнопки отмены, чтобы не отвлекала
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.grey),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Принять'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              // ✅ ВАЖНО: Явно задаем белый цвет текста
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Принять', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -243,41 +339,66 @@ class CourierOrdersScreen extends StatelessWidget {
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Ошибка: $e'),
-              backgroundColor: Colors.red,
-            ),
+            SnackBar(content: Text('Ошибка: $e'), backgroundColor: Colors.red),
           );
         }
       }
     }
   }
 
+  // ✅ ИСПРАВЛЕНО: Адаптированы цвета текста под тему и кнопки
   Future<void> _showOrderDetails(BuildContext context, app_order.Order order, String courierId) async {
-    // Показываем детали заказа в диалоге
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.grey[300] : Colors.black87;
+    final labelColor = isDark ? Colors.grey[500] : Colors.grey[600];
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Заказ #${order.id?.substring(0, 8) ?? 'N/A'}'),
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: Text(
+          'Заказ #${order.id?.substring(0, 8) ?? 'N/A'}',
+          style: TextStyle(color: isDark ? Colors.white : Colors.black),
+        ),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Адрес: ${order.deliveryAddressString}'),
+              _buildDetailRow(Icons.location_on, order.deliveryAddressString, textColor, labelColor),
               const SizedBox(height: 8),
-              Text('Телефон: ${order.phone}'),
+              _buildDetailRow(Icons.phone, order.phone, textColor, labelColor),
               const SizedBox(height: 8),
-              Text('Сумма: ${order.totalPrice.toStringAsFixed(2)} ₽'),
+              _buildDetailRow(Icons.payments, '${order.totalPrice.toStringAsFixed(2)} ₽', textColor, labelColor),
+
+              Divider(height: 24, color: isDark ? Colors.grey[800] : Colors.grey[300]),
+
+              Text('Состав заказа:', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black)),
               const SizedBox(height: 8),
-              const Text('Состав:', style: TextStyle(fontWeight: FontWeight.bold)),
               ...order.items.map((item) => Padding(
                 padding: const EdgeInsets.only(left: 8, top: 4),
-                child: Text('• ${item.dish.name} x${item.quantity}'),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 6, height: 6,
+                      decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${item.dish.name} x ${item.quantity}',
+                        style: TextStyle(color: textColor),
+                      ),
+                    ),
+                  ],
+                ),
               )),
+
               if (order.comment != null && order.comment!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text('Комментарий: ${order.comment}'),
+                Divider(height: 24, color: isDark ? Colors.grey[800] : Colors.grey[300]),
+                Text('Комментарий:', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black)),
+                const SizedBox(height: 4),
+                Text(order.comment!, style: TextStyle(color: textColor)),
               ],
             ],
           ),
@@ -285,21 +406,35 @@ class CourierOrdersScreen extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Закрыть'),
+            child: Text(
+              'Закрыть',
+              style: TextStyle(color: isDark ? Colors.white70 : Colors.grey),
+            ),
           ),
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
               _acceptOrder(context, order, courierId);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-            child: const Text('Принять'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white, // ✅ Белый текст
+            ),
+            child: const Text('Принять', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildDetailRow(IconData icon, String text, Color? textColor, Color? iconColor) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: iconColor ?? Colors.grey),
+        const SizedBox(width: 12),
+        Expanded(child: Text(text, style: TextStyle(color: textColor))),
+      ],
+    );
+  }
 }
-
-
-

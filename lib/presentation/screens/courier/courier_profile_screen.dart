@@ -134,6 +134,8 @@ class _CourierProfileScreenState extends State<CourierProfileScreen>
   @override
   Widget build(BuildContext context) {
     final user = Provider.of<AppUser?>(context);
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     if (user == null || user.uid.isEmpty) {
       return const Scaffold(
         body: Center(child: Text('Ошибка: пользователь не найден')),
@@ -143,63 +145,131 @@ class _CourierProfileScreenState extends State<CourierProfileScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Профиль'),
+        backgroundColor: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF1E1E1E) : Colors.white,
+        foregroundColor: Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black,
+        elevation: 0,
       ),
-      body: _buildCourierProfile(context, user),
+      body: _buildCourierProfile(context, user, themeProvider),
     );
   }
 
-  Widget _buildCourierProfile(BuildContext context, AppUser user) {
+  Widget _buildCourierProfile(BuildContext context, AppUser user, ThemeProvider themeProvider) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return AbsorbPointer(
       absorbing: _isLoading,
       child: Stack(
         children: [
-          Material(
-            color: Colors.transparent,
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 24.0),
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildAvatarSection(user),
-                const SizedBox(height: 16),
-                Text(
-                  user.name.isNotEmpty ? user.name : user.email.split('@').first,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  user.email,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  margin: const EdgeInsets.symmetric(horizontal: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
+                // 1. Секция Аватара (как у администратора)
+                Center(
+                  child: Column(
                     children: [
-                      Icon(Icons.delivery_dining, size: 16, color: Colors.blue.shade700),
-                      const SizedBox(width: 8),
+                      Stack(
+                        children: [
+                          GestureDetector(
+                            onTap: () => _pickAndUploadImage(user),
+                            child: Container(
+                              width: 120,
+                              height: 120,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.orange, width: 3),
+                              ),
+                              child: ClipOval(
+                                child: UniversalImage(
+                                  imageUrl: user.avatarUrl ?? '',
+                                  width: 120,
+                                  height: 120,
+                                  fit: BoxFit.cover,
+                                  errorWidget: Center(
+                                    child: Text(
+                                      user.initials,
+                                      style: const TextStyle(
+                                        fontSize: 36,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: const BoxDecoration(
+                                color: Colors.orange,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.camera_alt,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       Text(
-                        'Курьер',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue.shade700,
+                        user.name.isNotEmpty
+                            ? user.name
+                            : user.email.split('@').first,
+                        style: Theme.of(context).textTheme.headlineSmall,
+                      ),
+                      Text(
+                        user.email,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade100,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text(
+                          'Курьер',
+                          style: TextStyle(
+                            color: Colors.orange,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 32),
-                _buildProfileMenuItem(
-                  icon: Icons.manage_accounts_outlined,
-                  title: 'Настройки профиля',
+
+                // 2. Секция "Настройки профиля"
+                Text(
+                  'Настройки профиля',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                _buildListTile(
+                  context,
+                  icon: Icons.edit,
+                  title: 'Редактировать профиль',
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
@@ -208,23 +278,23 @@ class _CourierProfileScreenState extends State<CourierProfileScreen>
                     );
                   },
                 ),
-                const Divider(),
-                Consumer<ThemeProvider>(
-                  builder: (context, themeProvider, child) => ListTile(
-                    leading: Icon(
-                      themeProvider.isDarkMode ? Icons.dark_mode : Icons.light_mode,
-                      color: Colors.orange,
-                    ),
-                    title: const Text('Тёмная тема'),
-                    trailing: Switch(
-                      value: themeProvider.isDarkMode,
-                      onChanged: (value) => themeProvider.toggleTheme(user.uid),
-                      activeColor: Colors.orange,
-                    ),
+
+                // Переключатель темы
+                SwitchListTile(
+                  secondary: Icon(
+                    themeProvider.isDarkMode
+                        ? Icons.dark_mode
+                        : Icons.light_mode,
+                    color: Colors.orange,
                   ),
+                  title: const Text('Темная тема'),
+                  value: themeProvider.isDarkMode,
+                  onChanged: (value) => themeProvider.toggleTheme(user.uid),
+                  activeColor: Colors.orange,
                 ),
-                const Divider(),
-                _buildProfileMenuItem(
+
+                _buildListTile(
+                  context,
                   icon: Icons.help,
                   title: 'Помощь и поддержка',
                   onTap: () => Navigator.of(context).push(
@@ -233,104 +303,47 @@ class _CourierProfileScreenState extends State<CourierProfileScreen>
                     ),
                   ),
                 ),
-                const Divider(),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: OutlinedButton(
-                    onPressed: () => _showLogoutDialog(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                    child: const Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.logout, size: 20),
-                        SizedBox(width: 8),
-                        Text('Выйти из аккаунта', style: TextStyle(fontSize: 16)),
-                      ],
+
+                const SizedBox(height: 24),
+
+                // 3. Кнопка Выход (как у администратора)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => _handleLogout(context),
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Выйти'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
+
+          // Оверлей загрузки
           if (_isLoading)
             Container(
               color: Colors.black.withValues(alpha: 0.5),
-              child: const Center(child: CircularProgressIndicator(color: Colors.orange)),
+              child: const Center(
+                child: CircularProgressIndicator(color: Colors.orange),
+              ),
             ),
         ],
       ),
     );
   }
 
-  Widget _buildAvatarSection(AppUser user) {
-    return Center(
-      child: Stack(
-        children: [
-          CircleAvatar(
-            key: ValueKey(user.avatarUrl ?? ''),
-            radius: 50,
-            backgroundColor: Colors.orange.shade100,
-            child: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
-                ? ClipOval(
-                    child: UniversalImage(
-                      imageUrl: user.avatarUrl!,
-                      width: 100,
-                      height: 100,
-                      fit: BoxFit.cover,
-                      errorWidget: Center(
-                        child: Text(
-                          user.initials,
-                          style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange,
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                : Text(
-                    user.initials,
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
-                  ),
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Theme.of(context).cardColor,
-                border: Border.all(color: Colors.orange, width: 2),
-              ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => _pickAndUploadImage(user),
-                  borderRadius: BorderRadius.circular(20),
-                  child: const Padding(
-                    padding: EdgeInsets.all(4.0),
-                    child: Icon(Icons.edit, size: 20, color: Colors.orange),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileMenuItem({
+  // Вспомогательный метод для простых пунктов меню (как у администратора)
+  Widget _buildListTile(
+    BuildContext context, {
     required IconData icon,
     required String title,
     required VoidCallback onTap,
@@ -343,34 +356,30 @@ class _CourierProfileScreenState extends State<CourierProfileScreen>
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  Future<void> _handleLogout(BuildContext context) async {
     final authService = Provider.of<AuthService>(context, listen: false);
-    showDialog(
+
+    final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Выход из аккаунта'),
+        title: const Text('Выход'),
         content: const Text('Вы уверены, что хотите выйти?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Отмена'),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-
-              // Закрываем экран профиля, если можем
-              if (Navigator.canPop(context)) {
-                Navigator.of(context).pop();
-              }
-
-              await authService.signOut();
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Выйти'),
           ),
         ],
       ),
     );
+
+    if (confirm == true && mounted) {
+      await authService.signOut();
+    }
   }
 }
