@@ -62,10 +62,3 @@ class RouteService {
     return (timeHours * 60).round(); // Возвращаем в минутах
   }
 }
-
-
-
-
-
-
-
