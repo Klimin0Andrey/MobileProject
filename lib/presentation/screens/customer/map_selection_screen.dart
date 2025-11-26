@@ -22,7 +22,6 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
   bool _isLoadingLocation = true;
   bool _isResolvingAddress = false;
 
-  // Дефолтный текст, чтобы поле не было пустым при старте
   String _addressText = 'Наведите пин на здание';
   Map<String, dynamic>? _selectedAddressData;
 
@@ -33,7 +32,6 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
   @override
   void initState() {
     super.initState();
-    // Пробуем найти юзера
     _locateUser();
   }
 
@@ -53,7 +51,6 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
         _moveToPosition(newPoint);
       }
     } catch (e) {
-      // Ошибка GPS не критична, просто остаемся на месте, но резолвим адрес
       _resolveAddress(_currentCenter);
     } finally {
       if (mounted) setState(() => _isLoadingLocation = false);
@@ -64,15 +61,14 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
     if (!mounted) return;
     setState(() {
       _currentCenter = point;
-      _searchResults.clear(); // Очищаем поиск
-      _searchController.clear(); // Очищаем текст
-      FocusScope.of(context).unfocus(); // Убираем клавиатуру
+      _searchResults.clear();
+      _searchController.clear();
+      FocusScope.of(context).unfocus();
     });
-    _mapController.move(point, 17); // Зум поближе
+    _mapController.move(point, 17);
     _resolveAddress(point);
   }
 
-  // Поиск адресов при вводе текста
   void _onSearchChanged(String query) {
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
 
@@ -83,7 +79,6 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
 
     setState(() => _isSearching = true);
 
-    // Ждем 800мс перед запросом (debounce)
     _debounceTimer = Timer(const Duration(milliseconds: 800), () async {
       final results = await _locationService.searchPlaces(query);
       if (mounted) {
@@ -98,7 +93,6 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
   void _onPositionChanged(MapCamera position, bool hasGesture) {
     _currentCenter = position.center;
 
-    // Если двигаем карту рукой - скрываем результаты поиска
     if (hasGesture) {
       if (mounted && _searchResults.isNotEmpty) {
         setState(() => _searchResults = []);
@@ -106,15 +100,13 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
       }
     }
 
-    // Сбрасываем таймер геокодинга
     if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
 
     setState(() {
       _isResolvingAddress = true;
-      _addressText = 'Определение адреса...'; // Показываем, что идет процесс
+      _addressText = 'Определение адреса...';
     });
 
-    // Геокодинг сработает, когда карта постоит на месте 0.8 сек
     _debounceTimer = Timer(const Duration(milliseconds: 800), () {
       _resolveAddress(_currentCenter);
     });
@@ -128,7 +120,6 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
           _isResolvingAddress = false;
           if (data != null) {
             _selectedAddressData = data;
-            // Берем полный адрес или собираем из кусочков
             _addressText = data['fullAddress'] ?? '${data['street']}, ${data['house']}';
             if (_addressText.trim() == ',') _addressText = 'Адрес не определен';
           } else {
@@ -148,6 +139,14 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ ОПРЕДЕЛЯЕМ ТЕМУ
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // Цвета для элементов
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final hintColor = isDark ? Colors.grey[400] : Colors.grey[600];
+
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Stack(
@@ -164,6 +163,10 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             ),
             children: [
               TileLayer(
+                // В темной теме можно использовать темную карту (опционально),
+                // но OpenStreetMap по умолчанию светлый.
+                // Если хотите "темную карту", можно наложить полупрозрачный черный слой поверх (ColorFiltered),
+                // но это усложнит код. Оставим пока светлую карту.
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                 userAgentPackageName: 'com.example.yumyum',
               ),
@@ -178,7 +181,7 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             ),
           ),
 
-          // 3. ПОИСК И КНОПКА НАЗАД (ОБНОВЛЕННАЯ СЕКЦИЯ)
+          // 3. ПОИСК И КНОПКА НАЗАД
           Positioned(
             top: 50,
             left: 16,
@@ -186,49 +189,44 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 3.1 Кнопка НАЗАД (Круглая, белая)
+                // Кнопка НАЗАД
                 Container(
-                  margin: const EdgeInsets.only(top: 4), // Выравниваем визуально с полем
+                  margin: const EdgeInsets.only(top: 4),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: cardColor, // Адаптивный фон
                     shape: BoxShape.circle,
                     boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      )
+                      BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8, offset: const Offset(0, 2))
                     ],
                   ),
                   child: IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                    icon: Icon(Icons.arrow_back, color: textColor), // Адаптивная иконка
                     onPressed: () => Navigator.pop(context),
                   ),
                 ),
 
                 const SizedBox(width: 12),
 
-                // 3.2 ПОИСК И ВЫПАДАЮЩИЙ СПИСОК
+                // ПОЛЕ ПОИСКА
                 Expanded(
                   child: Column(
                     children: [
                       Card(
                         elevation: 6,
+                        color: cardColor, // Адаптивный фон
                         shadowColor: Colors.black26,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         child: TextField(
                           controller: _searchController,
                           onChanged: _onSearchChanged,
+                          style: TextStyle(color: textColor), // Цвет текста ввода
                           decoration: InputDecoration(
                             hintText: 'Поиск (например: Тверская 1)',
-                            prefixIcon:
-                            const Icon(Icons.search, color: Colors.orange),
-                            // Кнопка очистки текста
+                            hintStyle: TextStyle(color: hintColor),
+                            prefixIcon: const Icon(Icons.search, color: Colors.orange),
                             suffixIcon: _searchController.text.isNotEmpty
                                 ? IconButton(
-                              icon: const Icon(Icons.clear,
-                                  color: Colors.grey),
+                              icon: Icon(Icons.clear, color: hintColor),
                               onPressed: () {
                                 _searchController.clear();
                                 setState(() => _searchResults = []);
@@ -236,38 +234,31 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                             )
                                 : null,
                             border: InputBorder.none,
-                            contentPadding:
-                            const EdgeInsets.symmetric(vertical: 15),
+                            contentPadding: const EdgeInsets.symmetric(vertical: 15),
                           ),
                         ),
                       ),
 
-                      // 4. СПИСОК ПОДСКАЗОК (Внутри колонки, чтобы быть под полем)
+                      // СПИСОК ПОДСКАЗОК
                       if (_searchResults.isNotEmpty || _isSearching)
                         Container(
                           margin: const EdgeInsets.only(top: 8),
                           constraints: const BoxConstraints(maxHeight: 220),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: cardColor, // Адаптивный фон списка
                             borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              const BoxShadow(
-                                  color: Colors.black12, blurRadius: 10)
-                            ],
+                            boxShadow: [const BoxShadow(color: Colors.black12, blurRadius: 10)],
                           ),
                           child: _isSearching
                               ? const Padding(
                             padding: EdgeInsets.all(16.0),
-                            child: Center(
-                                child: CircularProgressIndicator(
-                                    color: Colors.orange)),
+                            child: Center(child: CircularProgressIndicator(color: Colors.orange)),
                           )
                               : ListView.separated(
                             padding: EdgeInsets.zero,
                             shrinkWrap: true,
                             itemCount: _searchResults.length,
-                            separatorBuilder: (_, __) => const Divider(
-                                height: 1, indent: 16, endIndent: 16),
+                            separatorBuilder: (_, __) => Divider(height: 1, indent: 16, endIndent: 16, color: Colors.grey.withOpacity(0.3)),
                             itemBuilder: (context, index) {
                               final item = _searchResults[index];
                               return ListTile(
@@ -275,21 +266,16 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                                   item['fullAddress'] ?? 'Неизвестно',
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w500),
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: textColor),
                                 ),
                                 subtitle: Text(
                                   item['displayName'] ?? '',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontSize: 13, color: Colors.grey),
+                                  style: TextStyle(fontSize: 13, color: hintColor),
                                 ),
                                 onTap: () {
-                                  // При клике летим на точку
-                                  _moveToPosition(
-                                      LatLng(item['lat'], item['lng']));
+                                  _moveToPosition(LatLng(item['lat'], item['lng']));
                                 },
                               );
                             },
@@ -305,18 +291,14 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
           // 5. КНОПКА GPS
           Positioned(
             right: 16,
-            bottom: 200, // Поднял повыше, чтобы не перекрывало панель
+            bottom: 200,
             child: FloatingActionButton(
               heroTag: 'gps_btn',
-              backgroundColor: Colors.white,
+              backgroundColor: cardColor, // Адаптивный фон
               onPressed: _locateUser,
               child: _isLoadingLocation
-                  ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.orange))
-                  : const Icon(Icons.my_location, color: Colors.black87),
+                  ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.orange))
+                  : Icon(Icons.my_location, color: textColor), // Адаптивная иконка
             ),
           ),
 
@@ -327,25 +309,21 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
             bottom: 0,
             child: Container(
               padding: const EdgeInsets.all(24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [
-                  BoxShadow(color: Colors.black12, blurRadius: 20, spreadRadius: 5)
-                ],
+              decoration: BoxDecoration(
+                color: cardColor, // ✅ Адаптивный фон нижней шторки
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20, spreadRadius: 5)],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Выбранный адрес',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text('Выбранный адрес', style: TextStyle(color: hintColor, fontSize: 12)),
                   const SizedBox(height: 8),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const Icon(Icons.location_on,
-                          color: Colors.orange, size: 28),
+                      const Icon(Icons.location_on, color: Colors.orange, size: 28),
                       const SizedBox(width: 12),
                       Expanded(
                         child: AnimatedSwitcher(
@@ -353,10 +331,11 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                           child: Text(
                             _addressText,
                             key: ValueKey(_addressText),
-                            style: const TextStyle(
+                            style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87),
+                                color: textColor // ✅ Адаптивный текст адреса
+                            ),
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -368,29 +347,21 @@ class _MapSelectionScreenState extends State<MapSelectionScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: (_isResolvingAddress ||
-                          _selectedAddressData == null)
+                      onPressed: (_isResolvingAddress || _selectedAddressData == null)
                           ? null
                           : () {
                         Navigator.pop(context, _selectedAddressData);
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange,
-                        foregroundColor: Colors.white,
+                        foregroundColor: Colors.white, // Текст кнопки всегда белый
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         elevation: 0,
                       ),
                       child: _isResolvingAddress
-                          ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                          : const Text('Подтвердить адрес',
-                          style: TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold)),
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                          : const Text('Подтвердить адрес', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
                   ),
                 ],
